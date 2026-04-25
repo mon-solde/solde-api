@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VehicleStatus {
+  ACTIVE
+  SOLD
+}
+
+model User {
+  id        String   @id // Firebase UID, or UUID for contacts without auth
+  firstName String
+  lastName  String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicleParticipations VehicleParticipant[]
+  expensePayments       ExpensePayer[]
+  wallet                Wallet?
+  lentDebts             Debt[]               @relation("Lender")
+  borrowedDebts         Debt[]               @relation("Borrower")
+  recurringCharges      RecurringCharge[]
+  monthlyBudgets        MonthlyBudget[]
+  manualSavingsEvents   ManualSavingsEvent[]
+
+  @@map("users")
+}
+
+model Wallet {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  balance   Int      @default(0)
+  userId    String   @unique
+  /// Cascade: without Cascade, deleting a user fails (FK constraint).
+  /// Domain events are published after the DB delete, so they can't
+  /// clean up the wallet before the user is removed.
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wallets")
+}
+
+model Vehicle {
+  id           String        @id
+  name         String
+  purchaseDate DateTime
+  status       VehicleStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  participants VehicleParticipant[]
+  expenses     Expense[]
+  soldVehicle  SoldVehicle?
+
+  @@map("vehicles")
+}
+
+model SoldVehicle {
+  id        String   @id
+  vehicleId String   @unique
+  salePrice Decimal
+  soldAt    DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("sold_vehicles")
+}
+
+model VehicleParticipant {
+  vehicleId   String
+  userId      String
+  profitShare Decimal
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@id([vehicleId, userId])
+  @@map("vehicle_participants")
+}
+
+model Expense {
+  id        String   @id
+  vehicleId String
+  label     String
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  payers  ExpensePayer[]
+
+  @@map("expenses")
+}
+
+model ExpensePayer {
+  expenseId String
+  userId    String
+  amount    Decimal
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@id([expenseId, userId])
+  @@map("expense_payers")
+}
+
+// ─── Debt tracking ────────────────────────────────────────────────────────────
+
+model Debt {
+  id          String   @id
+  lenderId    String
+  borrowerId  String
+  amount      Decimal
+  date        DateTime
+  description String?
+  /// Nullable — only set when the authenticated user is the lender
+  bankAmount  Decimal?
+  cashAmount  Decimal?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lender     User        @relation("Lender", fields: [lenderId], references: [id])
+  borrower   User        @relation("Borrower", fields: [borrowerId], references: [id])
+  repayments Repayment[]
+
+  @@map("debts")
+}
+
+model Repayment {
+  id         String   @id
+  debtId     String
+  amount     Decimal
+  date       DateTime
+  note       String?
+  /// Nullable — only set when the lender records the repayment
+  bankAmount Decimal?
+  cashAmount Decimal?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@map("repayments")
+}
+
+// ─── Recurring charges ────────────────────────────────────────────────────────
+
+enum RecurringChargeType {
+  AUTOMATIC
+  MANUAL
+}
+
+model RecurringCharge {
+  id        String   @id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name       String
+  amount     Decimal
+  type       RecurringChargeType
+  dueDay     Int?
+  inactiveAt DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  monthlyAutomaticEntries MonthlyAutomaticDeduction[]
+  monthlyManualEntries    MonthlyManualAction[]
+
+  @@map("recurring_charges")
+}
+
+// ─── Monthly budget ───────────────────────────────────────────────────────────
+
+model MonthlyBudget {
+  id             String   @id
+  userId         String
+  year           Int
+  month          Int
+  receivedSalary Decimal
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user                     User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automaticDeductions      MonthlyAutomaticDeduction[]
+  manualActions            MonthlyManualAction[]
+  savingsWithdrawals       MonthlyBudgetSavingsWithdrawal[]
+
+  @@unique([userId, year, month])
+  @@map("monthly_budgets")
+}
+
+model MonthlyAutomaticDeduction {
+  id                String   @id
+  budgetId          String
+  /// Nullable FK — keeps traceability without blocking recurring charge deletion.
+  recurringChargeId String?
+  label             String
+  amount            Decimal
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  budget          MonthlyBudget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  recurringCharge RecurringCharge? @relation(fields: [recurringChargeId], references: [id], onDelete: SetNull)
+
+  @@map("monthly_automatic_deductions")
+}
+
+model MonthlyManualAction {
+  id                String   @id
+  budgetId          String
+  /// Nullable FK — keeps traceability without blocking recurring charge deletion.
+  recurringChargeId String?
+  label             String
+  plannedAmount     Decimal
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  budget          MonthlyBudget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  recurringCharge RecurringCharge? @relation(fields: [recurringChargeId], references: [id], onDelete: SetNull)
+  payments        ActionPayment[]
+
+  @@map("monthly_manual_actions")
+}
+
+model ActionPayment {
+  id          String   @id
+  actionId    String
+  amount      Decimal
+  paymentDate DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  action MonthlyManualAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@map("action_payments")
+}
+
+model MonthlyBudgetSavingsWithdrawal {
+  id       String             @id
+  budgetId String
+  amount   Decimal
+  source   SavingsSource
+  date     DateTime
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  budget MonthlyBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@map("monthly_budget_savings_withdrawals")
+}
+
+// ─── Savings ──────────────────────────────────────────────────────────────────
+
+enum SavingsSource {
+  BANK
+  CASH
+}
+
+enum SavingsMovementKind {
+  ADDITION
+  WITHDRAWAL
+}
+
+model ManualSavingsEvent {
+  id           String              @id
+  userId       String
+  kind         SavingsMovementKind
+  source       SavingsSource
+  amount       Decimal
+  label        String
+  date         DateTime
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("manual_savings_events")
+}

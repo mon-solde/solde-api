@@ -8,6 +8,7 @@ import { AggregateID } from '@libs/ddd';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
+import { InsufficientSavingsError } from '../../domain/debt.errors';
 import { CreateDebtCommand } from './create-debt.command';
 import { CreateBorrowedDebtRequestDto } from './create-borrowed-debt.request.dto';
 
@@ -30,12 +31,14 @@ export class CreateBorrowedDebtHttpController {
       borrowerId: user.id,
       amount: body.amount,
       date: new Date(body.date),
+      role: 'BORROWED',
       description: body.description,
+      bankAmount: body.bankAmount,
+      cashAmount: body.cashAmount,
     });
 
-    const result: Result<AggregateID, never> = await this.commandBus.execute(
-      command,
-    );
+    const result: Result<AggregateID, InsufficientSavingsError> =
+      await this.commandBus.execute(command);
     return match(result, {
       Ok: (id: string) => new IdResponse(id),
       Err: (error) => {

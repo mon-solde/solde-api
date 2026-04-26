@@ -5,10 +5,41 @@ import { VehicleMapper } from './vehicle.mapper';
 import { VehicleRepository } from './database/vehicle.repository';
 import { CreateVehicleHttpController } from './commands/create-vehicle/create-vehicle.http.controller';
 import { CreateVehicleService } from './commands/create-vehicle/create-vehicle.service';
+import { AddExpenseHttpController } from './commands/add-expense/add-expense.http.controller';
+import { AddExpenseService } from './commands/add-expense/add-expense.service';
+import { DeleteExpenseHttpController } from './commands/delete-expense/delete-expense.http.controller';
+import { DeleteExpenseService } from './commands/delete-expense/delete-expense.service';
+import { DeclareSaleHttpController } from './commands/declare-sale/declare-sale.http.controller';
+import { DeclareSaleService } from './commands/declare-sale/declare-sale.service';
+import { DeleteVehicleHttpController } from './commands/delete-vehicle/delete-vehicle.http.controller';
+import { DeleteVehicleService } from './commands/delete-vehicle/delete-vehicle.service';
+import { FindVehiclesHttpController } from './queries/find-vehicles/find-vehicles.http.controller';
+import { FindVehiclesQueryHandler } from './queries/find-vehicles/find-vehicles.query-handler';
+import { GetVehicleDetailHttpController } from './queries/get-vehicle-detail/get-vehicle-detail.http.controller';
+import { GetVehicleDetailQueryHandler } from './queries/get-vehicle-detail/get-vehicle-detail.query-handler';
 
-const httpControllers = [CreateVehicleHttpController];
+const httpControllers = [
+  CreateVehicleHttpController,
+  AddExpenseHttpController,
+  DeleteExpenseHttpController,
+  DeclareSaleHttpController,
+  DeleteVehicleHttpController,
+  FindVehiclesHttpController,
+  GetVehicleDetailHttpController,
+];
 
-const commandHandlers: Provider[] = [CreateVehicleService];
+const commandHandlers: Provider[] = [
+  CreateVehicleService,
+  AddExpenseService,
+  DeleteExpenseService,
+  DeclareSaleService,
+  DeleteVehicleService,
+];
+
+const queryHandlers: Provider[] = [
+  FindVehiclesQueryHandler,
+  GetVehicleDetailQueryHandler,
+];
 
 const mappers: Provider[] = [VehicleMapper];
 
@@ -19,6 +50,6 @@ const repositories: Provider[] = [
 @Module({
   imports: [CqrsModule],
   controllers: [...httpControllers],
-  providers: [Logger, ...repositories, ...commandHandlers, ...mappers],
+  providers: [Logger, ...repositories, ...commandHandlers, ...queryHandlers, ...mappers],
 })
 export class VehicleModule {}

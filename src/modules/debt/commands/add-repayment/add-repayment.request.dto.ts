@@ -4,8 +4,15 @@ import {
   IsDateString,
   IsOptional,
   IsString,
+  IsEnum,
   Min,
 } from 'class-validator';
+
+export enum RepaymentSourceDto {
+  BANK = 'BANK',
+  CASH = 'CASH',
+  BOTH = 'BOTH',
+}
 
 export class AddRepaymentRequestDto {
   @ApiProperty({ example: 50 })
@@ -22,23 +29,17 @@ export class AddRepaymentRequestDto {
   @IsString()
   readonly note?: string;
 
-  @ApiProperty({
-    required: false,
-    example: 30,
-    description: 'Montant reçu sur le compte bancaire (si lendeur)',
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  readonly bankAmount?: number;
+  @ApiProperty({ enum: RepaymentSourceDto })
+  @IsEnum(RepaymentSourceDto)
+  readonly source: RepaymentSourceDto;
 
   @ApiProperty({
     required: false,
-    example: 20,
-    description: 'Montant reçu en espèces (si lendeur)',
+    example: 30,
+    description: 'Montant banque — requis uniquement si source = BOTH',
   })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  readonly cashAmount?: number;
+  readonly bankSplitAmount?: number;
 }

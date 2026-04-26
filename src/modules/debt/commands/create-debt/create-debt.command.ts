@@ -3,6 +3,7 @@ export class CreateDebtCommand {
   readonly borrowerId: string;
   readonly amount: number;
   readonly date: Date;
+  readonly role: 'LENT' | 'BORROWED';
   readonly description?: string;
   readonly bankAmount?: number;
   readonly cashAmount?: number;

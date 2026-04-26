@@ -4,8 +4,8 @@ export class AddRepaymentCommand {
   readonly amount: number;
   readonly date: Date;
   readonly note?: string;
-  readonly bankAmount?: number;
-  readonly cashAmount?: number;
+  readonly source: 'BANK' | 'CASH' | 'BOTH';
+  readonly bankSplitAmount?: number;
 
   constructor(props: AddRepaymentCommand) {
     Object.assign(this, props);

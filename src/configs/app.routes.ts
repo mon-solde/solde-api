@@ -26,6 +26,10 @@ export const routesV1 = {
   },
   vehicle: {
     root: vehiclesRoot,
+    byId: `${vehiclesRoot}/:vehicleId`,
+    expenses: `${vehiclesRoot}/:vehicleId/expenses`,
+    expenseById: `${vehiclesRoot}/:vehicleId/expenses/:expenseId`,
+    sale: `${vehiclesRoot}/:vehicleId/sale`,
   },
   wallet: {
     root: walletsRoot,

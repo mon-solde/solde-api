@@ -1,14 +1,38 @@
 import { AggregateRoot, AggregateID } from '@libs/ddd';
 import { randomUUID } from 'crypto';
-import { CreateDebtProps, DebtProps, RepaymentProps } from './debt.types';
+import {
+  CreateManualDebtProps,
+  CreateVehicleDebtProps,
+  DebtProps,
+  DebtType,
+  RepaymentProps,
+} from './debt.types';
 
 export class DebtEntity extends AggregateRoot<DebtProps> {
   protected readonly _id: AggregateID;
 
-  static create(create: CreateDebtProps): DebtEntity {
+  static createManual(create: CreateManualDebtProps): DebtEntity {
     const id = randomUUID();
-    const props: DebtProps = { ...create, repayments: [] };
+    const props: DebtProps = {
+      ...create,
+      type: DebtType.MANUAL,
+      repayments: [],
+    };
     return new DebtEntity({ id, props });
+  }
+
+  static createVehicle(create: CreateVehicleDebtProps): DebtEntity {
+    const id = randomUUID();
+    const props: DebtProps = {
+      ...create,
+      type: DebtType.VEHICLE,
+      repayments: [],
+    };
+    return new DebtEntity({ id, props });
+  }
+
+  get type(): DebtType {
+    return this.props.type;
   }
 
   addRepayment(props: Omit<RepaymentProps, 'id'>): RepaymentProps {
@@ -17,13 +41,6 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
     return repayment;
   }
 
-  update(
-    props: Partial<Pick<DebtProps, 'amount' | 'date' | 'description'>>,
-  ): void {
-    Object.assign(this.props, props);
-  }
-
-  /** Computed — not stored in DB */
   get totalRepaid(): number {
     return this.props.repayments.reduce((sum, r) => sum + r.amount, 0);
   }

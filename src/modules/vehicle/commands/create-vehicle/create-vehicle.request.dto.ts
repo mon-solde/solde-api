@@ -7,7 +7,6 @@ import {
   IsNotEmpty,
   IsNumber,
   IsString,
-  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -28,18 +27,20 @@ export class CreateVehicleParticipantDto {
 }
 
 export class CreateVehicleRequestDto {
-  @ApiProperty({ example: 'Audi A5 2018', description: 'Vehicle name' })
+  @ApiProperty({ example: 'Audi A5 2018' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
   readonly name: string;
 
-  @ApiProperty({
-    example: '2024-01-15',
-    description: 'Purchase date (ISO 8601)',
-  })
+  @ApiProperty({ example: '2024-01-15' })
   @IsDateString()
   readonly purchaseDate: string;
+
+  @ApiProperty({ example: 8500 })
+  @IsNumber()
+  @Min(0)
+  readonly purchasePrice: number;
 
   @ApiProperty({ type: [CreateVehicleParticipantDto] })
   @IsArray()

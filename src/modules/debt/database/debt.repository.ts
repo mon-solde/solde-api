@@ -10,33 +10,51 @@ import { DebtRepositoryPort } from './debt.repository.port';
 export type RepaymentModel = {
   id: string;
   debtId: string;
-  amount: any; // Prisma Decimal
+  amount: any;
   date: Date;
   note: string | null;
+  source: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type UserInfo = { firstName: string; lastName: string };
 
+export type ManualDebtRecord = {
+  debtId: string;
+  description: string | null;
+  bankAmount: any | null;
+  cashAmount: any | null;
+};
+
+export type VehicleDebtRecord = {
+  debtId: string;
+  vehicleId: string;
+  vehicle?: { name: string } | null;
+};
+
 export type DebtModel = {
   id: string;
   lenderId: string;
   borrowerId: string;
-  amount: any; // Prisma Decimal
+  amount: any;
   date: Date;
-  description: string | null;
+  type: string;
   createdAt: Date;
   updatedAt: Date;
-  repayments?: RepaymentModel[]; // populated on read (include), absent on insert
+  repayments?: RepaymentModel[];
   lender?: UserInfo;
   borrower?: UserInfo;
+  manualDebt?: ManualDebtRecord | null;
+  vehicleDebt?: VehicleDebtRecord | null;
 };
 
 const include = {
   repayments: true,
   lender: { select: { firstName: true, lastName: true } },
   borrower: { select: { firstName: true, lastName: true } },
+  manualDebt: true,
+  vehicleDebt: { include: { vehicle: { select: { name: true } } } },
 } as const;
 
 @Injectable()
@@ -59,7 +77,7 @@ export class DebtRepository
       where: { id },
       include,
     });
-    return result ? Some(this.mapper.toDomain(result)) : None;
+    return result ? Some(this.mapper.toDomain(result as any)) : None;
   }
 
   async findAllByUserId(userId: string): Promise<DebtEntity[]> {
@@ -68,7 +86,7 @@ export class DebtRepository
       include,
       orderBy: { date: 'desc' },
     });
-    return results.map((r) => this.mapper.toDomain(r));
+    return results.map((r) => this.mapper.toDomain(r as any));
   }
 
   async save(entity: DebtEntity): Promise<void> {
@@ -76,9 +94,6 @@ export class DebtRepository
     await this.client.debt.update({
       where: { id: entity.id },
       data: {
-        amount: copy.amount,
-        date: copy.date,
-        description: copy.description ?? null,
         repayments: {
           createMany: {
             // skipDuplicates ensures only new repayments are inserted
@@ -87,6 +102,7 @@ export class DebtRepository
               amount: r.amount,
               date: r.date,
               note: r.note ?? null,
+              source: r.source,
             })),
             skipDuplicates: true,
           },

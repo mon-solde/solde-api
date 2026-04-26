@@ -55,8 +55,8 @@ export class AddRepaymentHttpController {
         amount: body.amount,
         date: new Date(body.date),
         note: body.note,
-        bankAmount: body.bankAmount,
-        cashAmount: body.cashAmount,
+        source: body.source,
+        bankSplitAmount: body.bankSplitAmount,
       }),
     );
 

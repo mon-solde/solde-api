@@ -5,7 +5,7 @@ import {
   SavingsSource,
 } from './domain/savings-event.types';
 
-export type SavingsSourceType = 'DEBT' | 'REPAYMENT' | 'BUDGET' | 'MANUAL';
+export type SavingsSourceType = 'DEBT' | 'REPAYMENT' | 'BUDGET' | 'MANUAL' | 'VEHICLE_SALE';
 
 export interface SavingsHistoryItem {
   id: string;
@@ -15,6 +15,7 @@ export interface SavingsHistoryItem {
   label: string;
   date: Date;
   sourceType: SavingsSourceType;
+  note?: string;
 }
 
 export interface SavingsBalances {
@@ -55,32 +56,70 @@ export class SavingsEngine {
   }
 
   async getHistory(userId: string): Promise<SavingsHistoryItem[]> {
-    const [lentDebts, repayments, budgetWithdrawals, manualEvents] =
+    const [lentDebts, borrowedDebts, lenderRepayments, borrowerRepayments, budgetWithdrawals, manualEvents, vehicleExpenses, vehicleSales] =
       await Promise.all([
         this.prisma.debt.findMany({
           where: {
             lenderId: userId,
-            OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+            type: 'MANUAL',
+            manualDebt: {
+              OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+            },
           },
           select: {
             id: true,
-            bankAmount: true,
-            cashAmount: true,
             date: true,
             borrower: { select: { firstName: true } },
+            manualDebt: { select: { bankAmount: true, cashAmount: true } },
+          },
+        }),
+        this.prisma.debt.findMany({
+          where: {
+            borrowerId: userId,
+            type: 'MANUAL',
+            manualDebt: {
+              OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+            },
+          },
+          select: {
+            id: true,
+            date: true,
+            lender: { select: { firstName: true } },
+            manualDebt: { select: { bankAmount: true, cashAmount: true } },
           },
         }),
         this.prisma.repayment.findMany({
-          where: {
-            debt: { lenderId: userId },
-            OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
-          },
+          where: { debt: { lenderId: userId } },
           select: {
             id: true,
-            bankAmount: true,
-            cashAmount: true,
+            amount: true,
+            source: true,
+            note: true,
             date: true,
-            debt: { select: { borrower: { select: { firstName: true } } } },
+            debt: {
+              select: {
+                type: true,
+                borrower: { select: { firstName: true } },
+                vehicleDebt: { select: { vehicle: { select: { name: true } } } },
+              },
+            },
+          },
+        }),
+        this.prisma.repayment.findMany({
+          where: { debt: { borrowerId: userId } },
+          select: {
+            id: true,
+            amount: true,
+            source: true,
+            note: true,
+            date: true,
+            debt: {
+              select: {
+                type: true,
+                lender: { select: { firstName: true } },
+                vehicleDebt: { select: { vehicle: { select: { name: true } } } },
+              },
+            },
           },
         }),
         this.prisma.monthlyBudgetSavingsWithdrawal.findMany({
@@ -104,6 +143,31 @@ export class SavingsEngine {
             date: true,
           },
         }),
+        this.prisma.expensePayer.findMany({
+          where: { userId },
+          select: {
+            amount: true,
+            source: true,
+            expense: { select: { label: true, date: true, vehicle: { select: { name: true } } } },
+          },
+        }),
+        this.prisma.vehicleParticipant.findMany({
+          where: {
+            userId,
+            vehicle: { soldVehicle: { cashierId: userId } },
+          },
+          select: {
+            vehicle: {
+              select: {
+                id: true,
+                name: true,
+                soldVehicle: {
+                  select: { salePrice: true, soldAt: true, source: true },
+                },
+              },
+            },
+          },
+        }),
       ]);
 
     const items: SavingsHistoryItem[] = [];
@@ -111,51 +175,91 @@ export class SavingsEngine {
     for (const debt of lentDebts) {
       const name = debt.borrower.firstName;
       const label = `Prêt à ${name}`;
-      if (Number(debt.bankAmount ?? 0) > 0)
+      const bankAmount = Number(debt.manualDebt?.bankAmount ?? 0);
+      const cashAmount = Number(debt.manualDebt?.cashAmount ?? 0);
+      if (bankAmount > 0)
         items.push({
           id: `${debt.id}-bank`,
           kind: 'WITHDRAWAL',
           source: 'BANK',
-          amount: Number(debt.bankAmount),
+          amount: bankAmount,
           label,
           date: debt.date,
           sourceType: 'DEBT',
         });
-      if (Number(debt.cashAmount ?? 0) > 0)
+      if (cashAmount > 0)
         items.push({
           id: `${debt.id}-cash`,
           kind: 'WITHDRAWAL',
           source: 'CASH',
-          amount: Number(debt.cashAmount),
+          amount: cashAmount,
           label,
           date: debt.date,
           sourceType: 'DEBT',
         });
     }
 
-    for (const r of repayments) {
-      const name = r.debt.borrower.firstName;
-      const label = `Remboursement de ${name}`;
-      if (Number(r.bankAmount ?? 0) > 0)
+    for (const debt of borrowedDebts) {
+      const name = debt.lender.firstName;
+      const label = `Emprunt de ${name}`;
+      const bankAmount = Number(debt.manualDebt?.bankAmount ?? 0);
+      const cashAmount = Number(debt.manualDebt?.cashAmount ?? 0);
+      if (bankAmount > 0)
         items.push({
-          id: `${r.id}-bank`,
+          id: `${debt.id}-borrowed-bank`,
           kind: 'ADDITION',
           source: 'BANK',
-          amount: Number(r.bankAmount),
+          amount: bankAmount,
           label,
-          date: r.date,
-          sourceType: 'REPAYMENT',
+          date: debt.date,
+          sourceType: 'DEBT',
         });
-      if (Number(r.cashAmount ?? 0) > 0)
+      if (cashAmount > 0)
         items.push({
-          id: `${r.id}-cash`,
+          id: `${debt.id}-borrowed-cash`,
           kind: 'ADDITION',
           source: 'CASH',
-          amount: Number(r.cashAmount),
+          amount: cashAmount,
           label,
-          date: r.date,
-          sourceType: 'REPAYMENT',
+          date: debt.date,
+          sourceType: 'DEBT',
         });
+    }
+
+    for (const r of lenderRepayments) {
+      const name = r.debt.borrower.firstName;
+      const vehicleName = r.debt.vehicleDebt?.vehicle.name;
+      const label = vehicleName
+        ? `Reversement de ${name} — ${vehicleName}`
+        : `Remboursement de ${name}`;
+      items.push({
+        id: r.id,
+        kind: 'ADDITION',
+        source: r.source as SavingsSource,
+        amount: Number(r.amount),
+        label,
+        note: r.note ?? undefined,
+        date: r.date,
+        sourceType: 'REPAYMENT',
+      });
+    }
+
+    for (const r of borrowerRepayments) {
+      const name = r.debt.lender.firstName;
+      const vehicleName = r.debt.vehicleDebt?.vehicle.name;
+      const label = vehicleName
+        ? `Reversement à ${name} — ${vehicleName}`
+        : `Remboursement à ${name}`;
+      items.push({
+        id: r.id,
+        kind: 'WITHDRAWAL',
+        source: r.source as SavingsSource,
+        amount: Number(r.amount),
+        label,
+        note: r.note ?? undefined,
+        date: r.date,
+        sourceType: 'REPAYMENT',
+      });
     }
 
     for (const w of budgetWithdrawals) {
@@ -181,6 +285,34 @@ export class SavingsEngine {
         label: m.label,
         date: m.date,
         sourceType: 'MANUAL',
+      });
+    }
+
+    for (const payer of vehicleExpenses) {
+      items.push({
+        id: `vehicle-expense-${payer.expense.label}-${payer.expense.date.getTime()}`,
+        kind: 'WITHDRAWAL',
+        source: payer.source as SavingsSource,
+        amount: Number(payer.amount),
+        label: `${payer.expense.label} — ${payer.expense.vehicle.name}`,
+        date: payer.expense.date,
+        sourceType: 'VEHICLE_SALE',
+      });
+    }
+
+    for (const { vehicle } of vehicleSales) {
+      if (!vehicle.soldVehicle) continue;
+
+      const salePrice = Number(vehicle.soldVehicle.salePrice);
+
+      items.push({
+        id: `vehicle-sale-${vehicle.id}`,
+        kind: 'ADDITION',
+        source: vehicle.soldVehicle.source as SavingsSource,
+        amount: salePrice,
+        label: `Vente de ${vehicle.name}`,
+        date: vehicle.soldVehicle.soldAt,
+        sourceType: 'VEHICLE_SALE',
       });
     }
 

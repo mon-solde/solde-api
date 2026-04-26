@@ -1,4 +1,16 @@
 import { RepositoryPort } from '@libs/ddd';
 import { VehicleEntity } from '../domain/vehicle.entity';
 
-export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {}
+export interface InsertExpenseParams {
+  id: string;
+  vehicleId: string;
+  label: string;
+  date: Date;
+  payers: Array<{ userId: string; amount: number; source: 'BANK' | 'CASH' }>;
+}
+
+export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {
+  save(entity: VehicleEntity): Promise<void>;
+  insertExpense(params: InsertExpenseParams): Promise<void>;
+  deleteExpense(vehicleId: string, expenseId: string): Promise<boolean>;
+}

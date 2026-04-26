@@ -7,10 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum VehicleStatus {
-  ACTIVE
-  SOLD
-}
 
 model User {
   id        String   @id // Firebase UID, or UUID for contacts without auth
@@ -22,6 +18,7 @@ model User {
 
   vehicleParticipations VehicleParticipant[]
   expensePayments       ExpensePayer[]
+  cashedVehicles        SoldVehicle[]
   wallet                Wallet?
   lentDebts             Debt[]               @relation("Lender")
   borrowedDebts         Debt[]               @relation("Borrower")
@@ -47,29 +44,33 @@ model Wallet {
 }
 
 model Vehicle {
-  id           String        @id
-  name         String
-  purchaseDate DateTime
-  status       VehicleStatus @default(ACTIVE)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id            String   @id
+  name          String
+  purchaseDate  DateTime
+  purchasePrice Decimal
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   participants VehicleParticipant[]
   expenses     Expense[]
   soldVehicle  SoldVehicle?
+  vehicleDebts VehicleDebt[]
 
   @@map("vehicles")
 }
 
 model SoldVehicle {
-  id        String   @id
-  vehicleId String   @unique
+  id        String        @id
+  vehicleId String        @unique
   salePrice Decimal
   soldAt    DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  cashierId String
+  source    SavingsSource @default(BANK)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  cashier User    @relation(fields: [cashierId], references: [id])
 
   @@map("sold_vehicles")
 }
@@ -104,6 +105,7 @@ model ExpensePayer {
   expenseId String
   userId    String
   amount    Decimal
+  source    SavingsSource @default(BANK)
 
   expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])
@@ -114,37 +116,61 @@ model ExpensePayer {
 
 // ─── Debt tracking ────────────────────────────────────────────────────────────
 
-model Debt {
-  id          String   @id
-  lenderId    String
-  borrowerId  String
-  amount      Decimal
-  date        DateTime
-  description String?
-  /// Nullable — only set when the authenticated user is the lender
-  bankAmount  Decimal?
-  cashAmount  Decimal?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum DebtType {
+  MANUAL
+  VEHICLE
+}
 
-  lender     User        @relation("Lender", fields: [lenderId], references: [id])
-  borrower   User        @relation("Borrower", fields: [borrowerId], references: [id])
-  repayments Repayment[]
+model Debt {
+  id         String   @id
+  lenderId   String
+  borrowerId String
+  amount     Decimal
+  date       DateTime
+  type       DebtType
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lender      User         @relation("Lender", fields: [lenderId], references: [id])
+  borrower    User         @relation("Borrower", fields: [borrowerId], references: [id])
+  repayments  Repayment[]
+  manualDebt  ManualDebt?
+  vehicleDebt VehicleDebt?
 
   @@map("debts")
 }
 
+model ManualDebt {
+  debtId      String   @id
+  description String?
+  /// Only set when the authenticated user is the lender (tracks how the money was lent)
+  bankAmount  Decimal?
+  cashAmount  Decimal?
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@map("manual_debts")
+}
+
+model VehicleDebt {
+  debtId    String @id
+  vehicleId String
+
+  debt    Debt    @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@map("vehicle_debts")
+}
+
 model Repayment {
-  id         String   @id
-  debtId     String
-  amount     Decimal
-  date       DateTime
-  note       String?
-  /// Nullable — only set when the lender records the repayment
-  bankAmount Decimal?
-  cashAmount Decimal?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String        @id
+  debtId    String
+  amount    Decimal
+  date      DateTime
+  note      String?
+  source    SavingsSource
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
 

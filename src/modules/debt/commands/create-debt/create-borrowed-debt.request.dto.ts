@@ -25,4 +25,20 @@ export class CreateBorrowedDebtRequestDto {
   @IsOptional()
   @IsString()
   readonly description?: string;
+
+  @ApiProperty({
+    example: 100,
+    description: "Montant reçu sur le compte bancaire",
+  })
+  @IsNumber()
+  @Min(0)
+  readonly bankAmount: number;
+
+  @ApiProperty({
+    example: 50.5,
+    description: 'Montant reçu en espèces',
+  })
+  @IsNumber()
+  @Min(0)
+  readonly cashAmount: number;
 }

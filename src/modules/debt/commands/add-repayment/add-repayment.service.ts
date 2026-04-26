@@ -1,6 +1,7 @@
 import { BadRequestException, Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
+import { randomUUID } from 'crypto';
 import { AggregateID } from '@libs/ddd';
 import { PrismaService } from '@libs/db/prisma.service';
 import { DEBT_REPOSITORY } from '../../debt.di-tokens';
@@ -39,38 +40,54 @@ export class AddRepaymentService implements ICommandHandler {
     if (command.amount > debt.remaining)
       return Err(new DebtRepaymentExceedsAmountError());
 
-    const repayment = debt.addRepayment({
-      amount: command.amount,
-      date: command.date,
-      note: command.note,
-    });
-
-    const isLender = debt.getProps().lenderId === command.requesterId;
-    const bankAmount = command.bankAmount ?? 0;
-    const cashAmount = command.cashAmount ?? 0;
-    const hasSavingsData = isLender && (bankAmount > 0 || cashAmount > 0);
-
-    if (hasSavingsData) {
+    if (command.source === 'BOTH') {
+      const bankSplitAmount = command.bankSplitAmount ?? 0;
+      const cashAmount = command.amount - bankSplitAmount;
       const epsilon = 0.001;
-      if (Math.abs(bankAmount + cashAmount - command.amount) > epsilon) {
+      if (bankSplitAmount <= 0 || bankSplitAmount >= command.amount - epsilon) {
         throw new BadRequestException(
-          `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au montant remboursé (${command.amount})`,
+          'bankSplitAmount doit être compris entre 0 et le montant total.',
         );
       }
+      const bankId = randomUUID();
+      const cashId = randomUUID();
+      await this.prisma.$transaction([
+        this.prisma.repayment.create({
+          data: {
+            id: bankId,
+            debtId: command.debtId,
+            amount: bankSplitAmount,
+            date: command.date,
+            note: command.note ?? null,
+            source: 'BANK',
+          },
+        }),
+        this.prisma.repayment.create({
+          data: {
+            id: cashId,
+            debtId: command.debtId,
+            amount: cashAmount,
+            date: command.date,
+            note: command.note ?? null,
+            source: 'CASH',
+          },
+        }),
+      ]);
+      return Ok(bankId);
     }
 
+    const id = randomUUID();
     await this.prisma.repayment.create({
       data: {
-        id: repayment.id,
+        id,
         debtId: command.debtId,
-        amount: repayment.amount,
-        date: repayment.date,
-        note: repayment.note ?? null,
-        bankAmount: hasSavingsData && bankAmount > 0 ? bankAmount : null,
-        cashAmount: hasSavingsData && cashAmount > 0 ? cashAmount : null,
+        amount: command.amount,
+        date: command.date,
+        note: command.note ?? null,
+        source: command.source,
       },
     });
 
-    return Ok(repayment.id);
+    return Ok(id);
   }
 }

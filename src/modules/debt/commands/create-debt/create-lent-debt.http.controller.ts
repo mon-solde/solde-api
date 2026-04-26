@@ -41,6 +41,7 @@ export class CreateLentDebtHttpController {
       borrowerId: body.borrowerId,
       amount: body.amount,
       date: new Date(body.date),
+      role: 'LENT',
       description: body.description,
       bankAmount: body.bankAmount,
       cashAmount: body.cashAmount,

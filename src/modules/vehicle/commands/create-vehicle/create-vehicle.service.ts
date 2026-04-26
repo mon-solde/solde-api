@@ -1,10 +1,11 @@
 import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { Ok, Result } from 'oxide.ts';
+import { Err, Ok, Result } from 'oxide.ts';
 import { AggregateID } from '@libs/ddd';
 import { VehicleEntity } from '@modules/vehicle/domain/vehicle.entity';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
+import { VehicleProfitShareSumError } from '@modules/vehicle/domain/vehicle.errors';
 import { CreateVehicleCommand } from './create-vehicle.command';
 
 @CommandHandler(CreateVehicleCommand)
@@ -16,10 +17,22 @@ export class CreateVehicleService implements ICommandHandler {
 
   async execute(
     command: CreateVehicleCommand,
-  ): Promise<Result<AggregateID, never>> {
+  ): Promise<Result<AggregateID, VehicleProfitShareSumError>> {
+    const totalShare = command.participants.reduce(
+      (sum, p) => sum + p.profitShare,
+      0,
+    );
+    // JS can't store decimals exactly: 33.33 × 3 gives 99.9999... instead of 100.
+    // We compare the distance to 100 and allow up to 0.001 for these machine rounding errors.
+    // Any human-visible gap (e.g. 99.99%) is rejected.
+    if (Math.abs(totalShare - 100) > 0.001) {
+      return Err(new VehicleProfitShareSumError());
+    }
+
     const vehicle = VehicleEntity.create({
       name: command.name,
       purchaseDate: command.purchaseDate,
+      purchasePrice: command.purchasePrice,
       participants: command.participants,
     });
 

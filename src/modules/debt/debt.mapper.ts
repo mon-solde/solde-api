@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Mapper } from '@libs/ddd';
 import { DebtEntity } from './domain/debt.entity';
 import { DebtModel } from './database/debt.repository';
+import { DebtType } from './domain/debt.types';
 import { DebtResponseDto } from './dtos/debt.response.dto';
 
 @Injectable()
@@ -18,12 +19,43 @@ export class DebtMapper
       borrowerId: copy.borrowerId,
       amount: copy.amount,
       date: copy.date,
-      description: copy.description ?? null,
-      // repayments omitted — handled separately in DebtRepository.save() via createMany
+      type: copy.type,
     };
   }
 
   toDomain(record: DebtModel): DebtEntity {
+    const isVehicle = record.type === DebtType.VEHICLE;
+
+    if (isVehicle) {
+      return new DebtEntity({
+        id: record.id,
+        createdAt: new Date(record.createdAt),
+        updatedAt: new Date(record.updatedAt),
+        props: {
+          lenderId: record.lenderId,
+          borrowerId: record.borrowerId,
+          lenderName: record.lender
+            ? `${record.lender.firstName} ${record.lender.lastName}`
+            : undefined,
+          borrowerName: record.borrower
+            ? `${record.borrower.firstName} ${record.borrower.lastName}`
+            : undefined,
+          amount: Number(record.amount),
+          date: new Date(record.date),
+          type: DebtType.VEHICLE,
+          vehicleId: record.vehicleDebt?.vehicleId,
+          vehicleName: record.vehicleDebt?.vehicle?.name ?? undefined,
+          repayments: (record.repayments ?? []).map((r) => ({
+            id: r.id,
+            amount: Number(r.amount),
+            date: new Date(r.date),
+            note: r.note ?? undefined,
+            source: r.source as 'BANK' | 'CASH',
+          })),
+        },
+      });
+    }
+
     return new DebtEntity({
       id: record.id,
       createdAt: new Date(record.createdAt),
@@ -39,12 +71,20 @@ export class DebtMapper
           : undefined,
         amount: Number(record.amount),
         date: new Date(record.date),
-        description: record.description ?? undefined,
+        type: DebtType.MANUAL,
+        description: record.manualDebt?.description ?? undefined,
+        bankAmount: record.manualDebt?.bankAmount
+          ? Number(record.manualDebt.bankAmount)
+          : undefined,
+        cashAmount: record.manualDebt?.cashAmount
+          ? Number(record.manualDebt.cashAmount)
+          : undefined,
         repayments: (record.repayments ?? []).map((r) => ({
           id: r.id,
           amount: Number(r.amount),
           date: new Date(r.date),
           note: r.note ?? undefined,
+          source: r.source as 'BANK' | 'CASH',
         })),
       },
     });
@@ -59,7 +99,10 @@ export class DebtMapper
     dto.borrowerName = props.borrowerName ?? '';
     dto.amount = props.amount;
     dto.date = props.date;
+    dto.type = props.type;
     dto.description = props.description;
+    dto.vehicleId = props.vehicleId;
+    dto.vehicleName = props.vehicleName;
     dto.totalRepaid = entity.totalRepaid;
     dto.remaining = Math.max(0, props.amount - entity.totalRepaid);
     dto.isRepaid = entity.isRepaid;
@@ -68,6 +111,7 @@ export class DebtMapper
       amount: r.amount,
       date: r.date,
       note: r.note,
+      source: r.source,
     }));
     return dto;
   }

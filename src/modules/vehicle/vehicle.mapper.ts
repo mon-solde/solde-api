@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { Mapper } from '@libs/ddd';
 import { VehicleModel } from './database/vehicle.repository';
 import { VehicleEntity } from './domain/vehicle.entity';
-import { VehicleStatus } from './domain/vehicle.types';
 import { VehicleResponseDto } from './dtos/vehicle.response.dto';
 
 @Injectable()
@@ -17,12 +16,13 @@ export class VehicleMapper
       updatedAt: copy.updatedAt,
       name: copy.name,
       purchaseDate: copy.purchaseDate,
-      status: copy.status,
+      purchasePrice: copy.purchasePrice,
       participants: copy.participants.map((p) => ({
         vehicleId: copy.id,
         userId: p.userId,
         profitShare: p.profitShare,
       })),
+      soldVehicle: copy.soldVehicle ?? null,
     };
   }
 
@@ -34,11 +34,20 @@ export class VehicleMapper
       props: {
         name: record.name,
         purchaseDate: new Date(record.purchaseDate),
-        status: record.status as VehicleStatus,
+        purchasePrice: Number(record.purchasePrice),
         participants: record.participants.map((p) => ({
           userId: p.userId,
           profitShare: Number(p.profitShare),
         })),
+        soldVehicle: record.soldVehicle
+          ? {
+              id: record.soldVehicle.id,
+              salePrice: Number(record.soldVehicle.salePrice),
+              soldAt: new Date(record.soldVehicle.soldAt),
+              cashierId: record.soldVehicle.cashierId,
+              source: record.soldVehicle.source as 'BANK' | 'CASH',
+            }
+          : undefined,
       },
     });
   }
@@ -48,7 +57,8 @@ export class VehicleMapper
     const response = new VehicleResponseDto(entity);
     response.name = props.name;
     response.purchaseDate = props.purchaseDate.toISOString();
-    response.status = props.status;
+    response.purchasePrice = props.purchasePrice;
+    response.status = entity.status;
     response.participants = props.participants.map((p) => ({
       userId: p.userId,
       profitShare: p.profitShare,

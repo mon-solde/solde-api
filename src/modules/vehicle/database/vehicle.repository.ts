@@ -7,7 +7,10 @@ import { PrismaErrorCode } from '@libs/db/prisma-error.codes';
 import { ConflictException } from '@libs/exceptions';
 import { VehicleEntity } from '../domain/vehicle.entity';
 import { VehicleMapper } from '../vehicle.mapper';
-import { VehicleRepositoryPort } from './vehicle.repository.port';
+import {
+  InsertExpenseParams,
+  VehicleRepositoryPort,
+} from './vehicle.repository.port';
 
 export type VehicleParticipantRecord = {
   vehicleId: string;
@@ -15,14 +18,23 @@ export type VehicleParticipantRecord = {
   profitShare: any; // Prisma Decimal
 };
 
+export type SoldVehicleRecord = {
+  id: string;
+  salePrice: any; // Prisma Decimal
+  soldAt: Date;
+  cashierId: string;
+  source: string;
+};
+
 export type VehicleModel = {
   id: string;
   name: string;
   purchaseDate: Date;
-  status: string;
+  purchasePrice: any; // Prisma Decimal
   createdAt: Date;
   updatedAt: Date;
   participants: VehicleParticipantRecord[];
+  soldVehicle: SoldVehicleRecord | null;
 };
 
 @Injectable()
@@ -53,7 +65,7 @@ export class VehicleRepository
             id: record.id,
             name: record.name,
             purchaseDate: record.purchaseDate,
-            status: record.status,
+            purchasePrice: record.purchasePrice,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
             participants: {
@@ -74,12 +86,58 @@ export class VehicleRepository
     }
   }
 
-  // Override to include participants
   async findOneById(id: string): Promise<Option<VehicleEntity>> {
     const result = await this.client.vehicle.findUnique({
       where: { id },
-      include: { participants: true },
+      include: { participants: true, soldVehicle: true },
     });
-    return result ? Some(this.mapper.toDomain(result)) : None;
+    return result ? Some(this.mapper.toDomain(result as any)) : None;
+  }
+
+  async save(entity: VehicleEntity): Promise<void> {
+    const props = entity.getProps();
+    await this.client.$transaction([
+      ...(props.soldVehicle
+        ? [
+            this.client.soldVehicle.create({
+              data: {
+                id: props.soldVehicle.id,
+                vehicleId: entity.id,
+                salePrice: props.soldVehicle.salePrice,
+                soldAt: props.soldVehicle.soldAt,
+                cashierId: props.soldVehicle.cashierId,
+                source: props.soldVehicle.source,
+              },
+            }),
+          ]
+        : []),
+    ]);
+  }
+
+  async insertExpense(params: InsertExpenseParams): Promise<void> {
+    await this.client.expense.create({
+      data: {
+        id: params.id,
+        vehicleId: params.vehicleId,
+        label: params.label,
+        date: params.date,
+        payers: {
+          create: params.payers.map((p) => ({
+            userId: p.userId,
+            amount: p.amount,
+            source: p.source,
+          })),
+        },
+      },
+    });
+  }
+
+  async deleteExpense(vehicleId: string, expenseId: string): Promise<boolean> {
+    const expense = await this.client.expense.findFirst({
+      where: { id: expenseId, vehicleId },
+    });
+    if (!expense) return false;
+    await this.client.expense.delete({ where: { id: expenseId } });
+    return true;
   }
 }

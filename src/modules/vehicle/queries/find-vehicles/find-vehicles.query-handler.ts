@@ -18,7 +18,12 @@ export type VehicleListItem = {
   status: string;
   createdAt: Date;
   updatedAt: Date;
-  participants: Array<{ userId: string; firstName: string; lastName: string; profitShare: number }>;
+  participants: Array<{
+    userId: string;
+    firstName: string;
+    lastName: string;
+    profitShare: number;
+  }>;
   totalExpenses: number;
 };
 
@@ -33,13 +38,15 @@ export class FindVehiclesQueryHandler implements IQueryHandler {
       query.status === 'ACTIVE'
         ? { soldVehicle: { is: null } }
         : query.status === 'SOLD'
-          ? { soldVehicle: { isNot: null } }
-          : undefined;
+        ? { soldVehicle: { isNot: null } }
+        : undefined;
 
     const vehicles = await this.prisma.vehicle.findMany({
       where,
       include: {
-        participants: { include: { user: { select: { firstName: true, lastName: true } } } },
+        participants: {
+          include: { user: { select: { firstName: true, lastName: true } } },
+        },
         expenses: { include: { payers: true } },
         soldVehicle: true,
       },
@@ -48,8 +55,7 @@ export class FindVehiclesQueryHandler implements IQueryHandler {
 
     const data: VehicleListItem[] = vehicles.map((v) => {
       const totalExpenses = v.expenses.reduce(
-        (sum, e) =>
-          sum + e.payers.reduce((s, p) => s + Number(p.amount), 0),
+        (sum, e) => sum + e.payers.reduce((s, p) => s + Number(p.amount), 0),
         0,
       );
       const status = v.soldVehicle ? 'SOLD' : 'ACTIVE';

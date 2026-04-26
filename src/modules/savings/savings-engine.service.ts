@@ -5,7 +5,12 @@ import {
   SavingsSource,
 } from './domain/savings-event.types';
 
-export type SavingsSourceType = 'DEBT' | 'REPAYMENT' | 'BUDGET' | 'MANUAL' | 'VEHICLE_SALE';
+export type SavingsSourceType =
+  | 'DEBT'
+  | 'REPAYMENT'
+  | 'BUDGET'
+  | 'MANUAL'
+  | 'VEHICLE_SALE';
 
 export interface SavingsHistoryItem {
   id: string;
@@ -56,119 +61,133 @@ export class SavingsEngine {
   }
 
   async getHistory(userId: string): Promise<SavingsHistoryItem[]> {
-    const [lentDebts, borrowedDebts, lenderRepayments, borrowerRepayments, budgetWithdrawals, manualEvents, vehicleExpenses, vehicleSales] =
-      await Promise.all([
-        this.prisma.debt.findMany({
-          where: {
-            lenderId: userId,
-            type: 'MANUAL',
-            manualDebt: {
-              OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+    const [
+      lentDebts,
+      borrowedDebts,
+      lenderRepayments,
+      borrowerRepayments,
+      budgetWithdrawals,
+      manualEvents,
+      vehicleExpenses,
+      vehicleSales,
+    ] = await Promise.all([
+      this.prisma.debt.findMany({
+        where: {
+          lenderId: userId,
+          type: 'MANUAL',
+          manualDebt: {
+            OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+          },
+        },
+        select: {
+          id: true,
+          date: true,
+          borrower: { select: { firstName: true } },
+          manualDebt: { select: { bankAmount: true, cashAmount: true } },
+        },
+      }),
+      this.prisma.debt.findMany({
+        where: {
+          borrowerId: userId,
+          type: 'MANUAL',
+          manualDebt: {
+            OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+          },
+        },
+        select: {
+          id: true,
+          date: true,
+          lender: { select: { firstName: true } },
+          manualDebt: { select: { bankAmount: true, cashAmount: true } },
+        },
+      }),
+      this.prisma.repayment.findMany({
+        where: { debt: { lenderId: userId } },
+        select: {
+          id: true,
+          amount: true,
+          source: true,
+          note: true,
+          date: true,
+          debt: {
+            select: {
+              type: true,
+              borrower: { select: { firstName: true } },
+              vehicleDebt: { select: { vehicle: { select: { name: true } } } },
             },
           },
-          select: {
-            id: true,
-            date: true,
-            borrower: { select: { firstName: true } },
-            manualDebt: { select: { bankAmount: true, cashAmount: true } },
-          },
-        }),
-        this.prisma.debt.findMany({
-          where: {
-            borrowerId: userId,
-            type: 'MANUAL',
-            manualDebt: {
-              OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
+        },
+      }),
+      this.prisma.repayment.findMany({
+        where: { debt: { borrowerId: userId } },
+        select: {
+          id: true,
+          amount: true,
+          source: true,
+          note: true,
+          date: true,
+          debt: {
+            select: {
+              type: true,
+              lender: { select: { firstName: true } },
+              vehicleDebt: { select: { vehicle: { select: { name: true } } } },
             },
           },
-          select: {
-            id: true,
-            date: true,
-            lender: { select: { firstName: true } },
-            manualDebt: { select: { bankAmount: true, cashAmount: true } },
+        },
+      }),
+      this.prisma.monthlyBudgetSavingsWithdrawal.findMany({
+        where: { budget: { userId } },
+        select: {
+          id: true,
+          amount: true,
+          source: true,
+          date: true,
+          budget: { select: { month: true, year: true } },
+        },
+      }),
+      this.prisma.manualSavingsEvent.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          kind: true,
+          source: true,
+          amount: true,
+          label: true,
+          date: true,
+        },
+      }),
+      this.prisma.expensePayer.findMany({
+        where: { userId },
+        select: {
+          amount: true,
+          source: true,
+          expense: {
+            select: {
+              label: true,
+              date: true,
+              vehicle: { select: { name: true } },
+            },
           },
-        }),
-        this.prisma.repayment.findMany({
-          where: { debt: { lenderId: userId } },
-          select: {
-            id: true,
-            amount: true,
-            source: true,
-            note: true,
-            date: true,
-            debt: {
-              select: {
-                type: true,
-                borrower: { select: { firstName: true } },
-                vehicleDebt: { select: { vehicle: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.vehicleParticipant.findMany({
+        where: {
+          userId,
+          vehicle: { soldVehicle: { cashierId: userId } },
+        },
+        select: {
+          vehicle: {
+            select: {
+              id: true,
+              name: true,
+              soldVehicle: {
+                select: { salePrice: true, soldAt: true, source: true },
               },
             },
           },
-        }),
-        this.prisma.repayment.findMany({
-          where: { debt: { borrowerId: userId } },
-          select: {
-            id: true,
-            amount: true,
-            source: true,
-            note: true,
-            date: true,
-            debt: {
-              select: {
-                type: true,
-                lender: { select: { firstName: true } },
-                vehicleDebt: { select: { vehicle: { select: { name: true } } } },
-              },
-            },
-          },
-        }),
-        this.prisma.monthlyBudgetSavingsWithdrawal.findMany({
-          where: { budget: { userId } },
-          select: {
-            id: true,
-            amount: true,
-            source: true,
-            date: true,
-            budget: { select: { month: true, year: true } },
-          },
-        }),
-        this.prisma.manualSavingsEvent.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            kind: true,
-            source: true,
-            amount: true,
-            label: true,
-            date: true,
-          },
-        }),
-        this.prisma.expensePayer.findMany({
-          where: { userId },
-          select: {
-            amount: true,
-            source: true,
-            expense: { select: { label: true, date: true, vehicle: { select: { name: true } } } },
-          },
-        }),
-        this.prisma.vehicleParticipant.findMany({
-          where: {
-            userId,
-            vehicle: { soldVehicle: { cashierId: userId } },
-          },
-          select: {
-            vehicle: {
-              select: {
-                id: true,
-                name: true,
-                soldVehicle: {
-                  select: { salePrice: true, soldAt: true, source: true },
-                },
-              },
-            },
-          },
-        }),
-      ]);
+        },
+      }),
+    ]);
 
     const items: SavingsHistoryItem[] = [];
 
@@ -290,7 +309,9 @@ export class SavingsEngine {
 
     for (const payer of vehicleExpenses) {
       items.push({
-        id: `vehicle-expense-${payer.expense.label}-${payer.expense.date.getTime()}`,
+        id: `vehicle-expense-${
+          payer.expense.label
+        }-${payer.expense.date.getTime()}`,
         kind: 'WITHDRAWAL',
         source: payer.source as SavingsSource,
         amount: Number(payer.amount),

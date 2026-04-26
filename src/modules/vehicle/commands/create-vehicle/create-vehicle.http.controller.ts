@@ -25,7 +25,10 @@ export class CreateVehicleHttpController {
   @ApiOperation({ summary: 'Create a vehicle' })
   @ApiResponse({ status: HttpStatus.CREATED, type: IdResponse })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, type: ApiErrorResponse })
-  @ApiResponse({ status: HttpStatus.UNPROCESSABLE_ENTITY, type: ApiErrorResponse })
+  @ApiResponse({
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    type: ApiErrorResponse,
+  })
   @Post(routesV1.vehicle.root)
   async create(@Body() body: CreateVehicleRequestDto): Promise<IdResponse> {
     const command = new CreateVehicleCommand({

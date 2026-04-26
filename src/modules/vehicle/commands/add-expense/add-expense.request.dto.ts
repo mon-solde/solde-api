@@ -29,7 +29,7 @@ export class ExpensePayerDto {
 }
 
 export class AddExpenseRequestDto {
-  @ApiProperty({ example: 'Main d\'œuvre moteur' })
+  @ApiProperty({ example: "Main d'œuvre moteur" })
   @IsString()
   @IsNotEmpty()
   readonly label: string;

@@ -28,7 +28,7 @@ export class CreateBorrowedDebtRequestDto {
 
   @ApiProperty({
     example: 100,
-    description: "Montant reçu sur le compte bancaire",
+    description: 'Montant reçu sur le compte bancaire',
   })
   @IsNumber()
   @Min(0)

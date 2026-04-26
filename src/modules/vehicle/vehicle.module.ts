@@ -50,6 +50,12 @@ const repositories: Provider[] = [
 @Module({
   imports: [CqrsModule],
   controllers: [...httpControllers],
-  providers: [Logger, ...repositories, ...commandHandlers, ...queryHandlers, ...mappers],
+  providers: [
+    Logger,
+    ...repositories,
+    ...commandHandlers,
+    ...queryHandlers,
+    ...mappers,
+  ],
 })
 export class VehicleModule {}

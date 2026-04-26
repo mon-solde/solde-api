@@ -28,7 +28,10 @@ export class DeleteExpenseHttpController {
   @ApiOperation({ summary: 'Delete an expense' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
-  @ApiResponse({ status: HttpStatus.UNPROCESSABLE_ENTITY, type: ApiErrorResponse })
+  @ApiResponse({
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    type: ApiErrorResponse,
+  })
   @Delete(routesV1.vehicle.expenseById)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
@@ -45,7 +48,10 @@ export class DeleteExpenseHttpController {
     match(result, {
       Ok: () => undefined,
       Err: (error) => {
-        if (error instanceof VehicleNotFoundError || error instanceof ExpenseNotFoundError)
+        if (
+          error instanceof VehicleNotFoundError ||
+          error instanceof ExpenseNotFoundError
+        )
           throw new NotFoundException(error.message);
         if (error instanceof VehicleAlreadySoldError)
           throw new UnprocessableEntityException(error.message);

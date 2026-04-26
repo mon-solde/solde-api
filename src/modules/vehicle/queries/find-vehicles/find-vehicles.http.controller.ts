@@ -3,7 +3,10 @@ import { QueryBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '@modules/auth/public.decorator';
 import { routesV1 } from '@config/app.routes';
-import { FindVehiclesQuery, VehicleListItem } from './find-vehicles.query-handler';
+import {
+  FindVehiclesQuery,
+  VehicleListItem,
+} from './find-vehicles.query-handler';
 import { FindVehiclesRequestDto } from './find-vehicles.request.dto';
 
 @Public()

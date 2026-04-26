@@ -69,7 +69,12 @@ export type VehicleDetail = {
   status: string;
   createdAt: Date;
   updatedAt: Date;
-  participants: Array<{ userId: string; firstName: string; lastName: string; profitShare: number }>;
+  participants: Array<{
+    userId: string;
+    firstName: string;
+    lastName: string;
+    profitShare: number;
+  }>;
   expenses: ExpenseDetail[];
   soldVehicle: {
     salePrice: number;
@@ -90,9 +95,17 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: query.vehicleId },
       include: {
-        participants: { include: { user: { select: { firstName: true, lastName: true } } } },
+        participants: {
+          include: { user: { select: { firstName: true, lastName: true } } },
+        },
         expenses: {
-          include: { payers: { include: { user: { select: { firstName: true, lastName: true } } } } },
+          include: {
+            payers: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
           orderBy: { date: 'desc' },
         },
         soldVehicle: true,
@@ -150,8 +163,8 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       cashierId = vehicle.soldVehicle.cashierId;
     }
 
-    const participantSummaries: ParticipantSummary[] =
-      vehicle.participants.map((p) => {
+    const participantSummaries: ParticipantSummary[] = vehicle.participants.map(
+      (p) => {
         const totalInvested = investedByUser.get(p.userId) ?? 0;
         const profitShare = Number(p.profitShare);
         const profitFromSale =
@@ -167,7 +180,8 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
           profitFromSale,
           amountToReceive,
         };
-      });
+      },
+    );
 
     const reversements: ReversementDetail[] = vehicle.vehicleDebts.map((vd) => {
       const amountDue = Number(vd.debt.amount);

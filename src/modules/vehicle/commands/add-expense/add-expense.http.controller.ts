@@ -29,7 +29,10 @@ export class AddExpenseHttpController {
   @ApiOperation({ summary: 'Add an expense to a vehicle' })
   @ApiResponse({ status: HttpStatus.CREATED, type: IdResponse })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
-  @ApiResponse({ status: HttpStatus.UNPROCESSABLE_ENTITY, type: ApiErrorResponse })
+  @ApiResponse({
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    type: ApiErrorResponse,
+  })
   @Post(routesV1.vehicle.expenses)
   async create(
     @Param('vehicleId') vehicleId: string,

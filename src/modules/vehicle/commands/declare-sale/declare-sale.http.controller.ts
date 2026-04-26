@@ -31,7 +31,10 @@ export class DeclareSaleHttpController {
   @ApiOperation({ summary: 'Declare a vehicle as sold' })
   @ApiResponse({ status: HttpStatus.CREATED, type: IdResponse })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
-  @ApiResponse({ status: HttpStatus.UNPROCESSABLE_ENTITY, type: ApiErrorResponse })
+  @ApiResponse({
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    type: ApiErrorResponse,
+  })
   @Post(routesV1.vehicle.sale)
   async declare(
     @Param('vehicleId') vehicleId: string,
@@ -57,7 +60,10 @@ export class DeclareSaleHttpController {
       Err: (error) => {
         if (error instanceof VehicleNotFoundError)
           throw new NotFoundException(error.message);
-        if (error instanceof VehicleAlreadySoldError || error instanceof VehicleCashierNotParticipantError)
+        if (
+          error instanceof VehicleAlreadySoldError ||
+          error instanceof VehicleCashierNotParticipantError
+        )
           throw new UnprocessableEntityException(error.message);
         throw error;
       },

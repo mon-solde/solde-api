@@ -12,7 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev && npm install --no-save prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/src/generated/prisma ./src/generated/prisma
 COPY --from=build /app/dist ./dist
 COPY prisma ./prisma
 EXPOSE 3000

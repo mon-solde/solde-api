@@ -1,4 +1,4 @@
-import { ArgsType, Field, InputType } from '@nestjs/graphql';
+import { ArgsType, Field, InputType, registerEnumType } from '@nestjs/graphql';
 import {
   // IsAlphanumeric,
   IsEmail,
@@ -10,6 +10,8 @@ import {
   MinLength,
 } from 'class-validator';
 import { UserRoles } from '@modules/user/domain/user.types';
+
+registerEnumType(UserRoles, { name: 'UserRoles' });
 
 @ArgsType()
 @InputType()
@@ -37,7 +39,7 @@ export class CreateUserGqlRequestDto {
   readonly lastName: string;
 
   @IsEnum(UserRoles)
-  @Field()
+  @Field(() => UserRoles)
   readonly role: UserRoles;
 
   // @MaxLength(50) @MinLength(4) @IsString() @Matches(/^[a-zA-Z ]*$/)

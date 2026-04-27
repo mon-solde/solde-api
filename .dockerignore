@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.git
+docker
+tests
+*.md
+jest-e2e.json

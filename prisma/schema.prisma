@@ -16,9 +16,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vehicleParticipations VehicleParticipant[]
-  expensePayments       ExpensePayer[]
-  cashedVehicles        SoldVehicle[]
+  vehicleParticipations  VehicleParticipant[]
+  expensePayments        ExpensePayer[]       @relation("ExpensePayerUser")
+  imputedExpensePayments ExpensePayer[]       @relation("ImputedExpensePayments")
+  cashedVehicles         SoldVehicle[]
   wallet                Wallet?
   lentDebts             Debt[]               @relation("Lender")
   borrowedDebts         Debt[]               @relation("Borrower")
@@ -95,22 +96,26 @@ model Expense {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vehicle Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  payers  ExpensePayer[]
+  vehicle      Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  payers       ExpensePayer[]
+  expenseDebts ExpenseDebt[]
 
   @@map("expenses")
 }
 
 model ExpensePayer {
-  expenseId String
-  userId    String
-  amount    Decimal
-  source    SavingsSource @default(BANK)
+  id          String        @id @default(uuid())
+  expenseId   String
+  userId      String
+  amount      Decimal
+  source      SavingsSource @default(BANK)
+  imputedToId String?
 
-  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id])
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user      User    @relation("ExpensePayerUser", fields: [userId], references: [id])
+  imputedTo User?   @relation("ImputedExpensePayments", fields: [imputedToId], references: [id])
 
-  @@id([expenseId, userId])
+  @@index([expenseId, userId])
   @@map("expense_payers")
 }
 
@@ -119,6 +124,7 @@ model ExpensePayer {
 enum DebtType {
   MANUAL
   VEHICLE
+  EXPENSE
 }
 
 model Debt {
@@ -136,6 +142,7 @@ model Debt {
   repayments  Repayment[]
   manualDebt  ManualDebt?
   vehicleDebt VehicleDebt?
+  expenseDebt ExpenseDebt?
 
   @@map("debts")
 }
@@ -160,6 +167,16 @@ model VehicleDebt {
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
 
   @@map("vehicle_debts")
+}
+
+model ExpenseDebt {
+  debtId    String @id
+  expenseId String
+
+  debt    Debt    @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@map("expense_debts")
 }
 
 model Repayment {

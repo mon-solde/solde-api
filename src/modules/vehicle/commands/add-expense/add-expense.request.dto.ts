@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -7,6 +7,7 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
   ValidateNested,
@@ -26,6 +27,12 @@ export class ExpensePayerDto {
   @ApiProperty({ example: 'BANK', enum: ['BANK', 'CASH'] })
   @IsIn(['BANK', 'CASH'])
   readonly source: 'BANK' | 'CASH';
+
+  @ApiPropertyOptional({ example: 'firebase-uid-456' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  readonly imputedToId?: string;
 }
 
 export class AddExpenseRequestDto {

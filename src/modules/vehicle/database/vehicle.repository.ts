@@ -126,10 +126,29 @@ export class VehicleRepository
             userId: p.userId,
             amount: p.amount,
             source: p.source,
+            imputedToId: p.imputedToId ?? null,
           })),
         },
       },
     });
+  }
+
+  async findExpenseDebts(
+    expenseId: string,
+  ): Promise<{ debtId: string; hasRepayments: boolean }[]> {
+    const rows = await this.client.expenseDebt.findMany({
+      where: { expenseId },
+      include: { debt: { select: { repayments: { select: { id: true } } } } },
+    });
+    return rows.map((r) => ({
+      debtId: r.debtId,
+      hasRepayments: r.debt.repayments.length > 0,
+    }));
+  }
+
+  async deleteDebtsByIds(debtIds: string[]): Promise<void> {
+    if (debtIds.length === 0) return;
+    await this.client.debt.deleteMany({ where: { id: { in: debtIds } } });
   }
 
   async deleteExpense(vehicleId: string, expenseId: string): Promise<boolean> {

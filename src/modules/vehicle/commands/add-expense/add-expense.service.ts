@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
+import { PrismaService } from '@libs/db/prisma.service';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
@@ -15,6 +16,7 @@ export class AddExpenseService implements ICommandHandler {
   constructor(
     @Inject(VEHICLE_REPOSITORY)
     private readonly vehicleRepo: VehicleRepositoryPort,
+    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -35,6 +37,31 @@ export class AddExpenseService implements ICommandHandler {
       date: command.date,
       payers: command.payers,
     });
+
+    const delegatedPayers = command.payers.filter(
+      (p) => p.imputedToId && p.imputedToId !== p.userId,
+    );
+
+    if (delegatedPayers.length > 0) {
+      await this.prisma.$transaction(
+        delegatedPayers.map((p) => {
+          const debtId = randomUUID();
+          return this.prisma.debt.create({
+            data: {
+              id: debtId,
+              lenderId: p.userId,
+              borrowerId: p.imputedToId!,
+              amount: p.amount,
+              date: command.date,
+              type: 'EXPENSE',
+              expenseDebt: {
+                create: { expenseId },
+              },
+            },
+          });
+        }),
+      );
+    }
 
     return Ok(expenseId);
   }

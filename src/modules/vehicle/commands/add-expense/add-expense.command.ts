@@ -4,6 +4,7 @@ export interface ExpensePayerProps {
   userId: string;
   amount: number;
   source: 'BANK' | 'CASH';
+  imputedToId?: string;
 }
 
 export class AddExpenseCommand extends Command {

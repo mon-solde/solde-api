@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Controller,
   Delete,
   HttpCode,
@@ -14,6 +15,7 @@ import { routesV1 } from '@config/app.routes';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
 import { Public } from '@modules/auth/public.decorator';
 import {
+  ExpenseHasRepaymentsError,
   ExpenseNotFoundError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
@@ -42,7 +44,10 @@ export class DeleteExpenseHttpController {
 
     const result: Result<
       void,
-      VehicleNotFoundError | VehicleAlreadySoldError | ExpenseNotFoundError
+      | VehicleNotFoundError
+      | VehicleAlreadySoldError
+      | ExpenseNotFoundError
+      | ExpenseHasRepaymentsError
     > = await this.commandBus.execute(command);
 
     match(result, {
@@ -55,6 +60,8 @@ export class DeleteExpenseHttpController {
           throw new NotFoundException(error.message);
         if (error instanceof VehicleAlreadySoldError)
           throw new UnprocessableEntityException(error.message);
+        if (error instanceof ExpenseHasRepaymentsError)
+          throw new ConflictException(error.message);
         throw error;
       },
     });

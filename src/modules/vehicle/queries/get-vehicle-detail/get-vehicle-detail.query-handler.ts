@@ -32,6 +32,9 @@ export type ExpensePayerDetail = {
   firstName: string;
   lastName: string;
   amount: number;
+  imputedToId: string | null;
+  imputedToFirstName: string | null;
+  imputedToLastName: string | null;
 };
 
 export type ExpenseDetail = {
@@ -103,6 +106,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
             payers: {
               include: {
                 user: { select: { firstName: true, lastName: true } },
+                imputedTo: { select: { firstName: true, lastName: true } },
               },
             },
           },
@@ -136,6 +140,9 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
           firstName: p.user.firstName,
           lastName: p.user.lastName,
           amount: Number(p.amount),
+          imputedToId: p.imputedToId ?? null,
+          imputedToFirstName: p.imputedTo?.firstName ?? null,
+          imputedToLastName: p.imputedTo?.lastName ?? null,
         })),
       };
     });

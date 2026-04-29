@@ -47,3 +47,12 @@ export class ExpenseNotFoundError extends ExceptionBase {
     super(ExpenseNotFoundError.message, cause, metadata);
   }
 }
+
+export class ExpenseHasRepaymentsError extends ExceptionBase {
+  static readonly message =
+    'Cannot delete expense: a linked debt has already been partially repaid';
+  public readonly code = 'EXPENSE.HAS_REPAYMENTS';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(ExpenseHasRepaymentsError.message, cause, metadata);
+  }
+}

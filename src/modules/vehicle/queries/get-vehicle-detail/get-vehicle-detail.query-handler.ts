@@ -153,9 +153,10 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     const investedByUser = new Map<string, number>();
     for (const expense of expenses) {
       for (const payer of expense.payers) {
+        const responsibleId = payer.imputedToId ?? payer.userId;
         investedByUser.set(
-          payer.userId,
-          (investedByUser.get(payer.userId) ?? 0) + payer.amount,
+          responsibleId,
+          (investedByUser.get(responsibleId) ?? 0) + payer.amount,
         );
       }
     }

@@ -27,6 +27,15 @@ export class DebtRepaymentExceedsAmountError extends ExceptionBase {
   }
 }
 
+export class RepaymentNotFoundError extends ExceptionBase {
+  static readonly message = 'Repayment not found';
+  readonly code = 'DEBT.REPAYMENT_NOT_FOUND';
+
+  constructor(cause?: Error) {
+    super(RepaymentNotFoundError.message, cause);
+  }
+}
+
 export class InsufficientSavingsError extends ExceptionBase {
   readonly code = 'DEBT.INSUFFICIENT_SAVINGS';
 

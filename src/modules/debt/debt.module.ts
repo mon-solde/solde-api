@@ -11,6 +11,8 @@ import { DeleteDebtHttpController } from './commands/delete-debt/delete-debt.htt
 import { DeleteDebtService } from './commands/delete-debt/delete-debt.service';
 import { AddRepaymentHttpController } from './commands/add-repayment/add-repayment.http.controller';
 import { AddRepaymentService } from './commands/add-repayment/add-repayment.service';
+import { DeleteRepaymentHttpController } from './commands/delete-repayment/delete-repayment.http.controller';
+import { DeleteRepaymentService } from './commands/delete-repayment/delete-repayment.service';
 import { FindDebtsHttpController } from './queries/find-debts/find-debts.http.controller';
 import { FindDebtsQueryHandler } from './queries/find-debts/find-debts.query-handler';
 
@@ -19,6 +21,7 @@ const httpControllers = [
   CreateBorrowedDebtHttpController,
   DeleteDebtHttpController,
   AddRepaymentHttpController,
+  DeleteRepaymentHttpController,
   FindDebtsHttpController,
 ];
 
@@ -26,6 +29,7 @@ const commandHandlers: Provider[] = [
   CreateDebtService,
   DeleteDebtService,
   AddRepaymentService,
+  DeleteRepaymentService,
 ];
 
 const queryHandlers: Provider[] = [FindDebtsQueryHandler];

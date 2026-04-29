@@ -41,6 +41,7 @@ export const routesV1 = {
     borrowed: `${debtsRoot}/borrowed`,
     byId: `${debtsRoot}/:id`,
     repayments: `${debtsRoot}/:id/repayments`,
+    repaymentById: `${debtsRoot}/:id/repayments/:repaymentId`,
   },
   monthlyBudget: {
     root: 'monthly-budgets',

@@ -14,10 +14,10 @@ import {
 } from 'class-validator';
 
 export class ExpensePayerDto {
-  @ApiProperty({ example: 'firebase-uid-123' })
+  @ApiProperty({ example: 'firebase-uid-123 (owner) or a contact id' })
   @IsString()
   @IsNotEmpty()
-  readonly userId: string;
+  readonly payerId: string;
 
   @ApiProperty({ example: 681.69 })
   @IsNumber()

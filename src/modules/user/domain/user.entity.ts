@@ -13,7 +13,6 @@ export class UserEntity extends AggregateRoot<UserProps> {
     user.addEvent(
       new UserCreatedDomainEvent({
         aggregateId: id,
-        email: props.email,
         firstName: props.firstName,
         lastName: props.lastName,
       }),

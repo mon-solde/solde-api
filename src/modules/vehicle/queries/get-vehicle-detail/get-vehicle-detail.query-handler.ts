@@ -11,9 +11,9 @@ export class GetVehicleDetailQuery {
 }
 
 export type ParticipantSummary = {
-  userId: string;
+  contactId: string;
   firstName: string;
-  lastName: string;
+  lastName: string | null;
   profitShare: number;
   totalInvested: number;
   profitFromSale: number | null;
@@ -28,9 +28,9 @@ export type FinancialSummary = {
 };
 
 export type ExpensePayerDetail = {
-  userId: string;
+  payerId: string;
   firstName: string;
-  lastName: string;
+  lastName: string | null;
   amount: number;
   imputedToId: string | null;
   imputedToFirstName: string | null;
@@ -56,7 +56,7 @@ export type ReversementDetail = {
   debtId: string;
   recipientId: string;
   recipientFirstName: string;
-  recipientLastName: string;
+  recipientLastName: string | null;
   amountDue: number;
   amountPaid: number;
   remaining: number;
@@ -73,9 +73,9 @@ export type VehicleDetail = {
   createdAt: Date;
   updatedAt: Date;
   participants: Array<{
-    userId: string;
+    contactId: string;
     firstName: string;
-    lastName: string;
+    lastName: string | null;
     profitShare: number;
   }>;
   expenses: ExpenseDetail[];
@@ -99,13 +99,19 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       where: { id: query.vehicleId },
       include: {
         participants: {
-          include: { user: { select: { firstName: true, lastName: true } } },
+          include: {
+            contact: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
         },
         expenses: {
           include: {
             payers: {
               include: {
-                user: { select: { firstName: true, lastName: true } },
+                payer: { select: { firstName: true, lastName: true } },
                 imputedTo: { select: { firstName: true, lastName: true } },
               },
             },
@@ -117,7 +123,16 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
           include: {
             debt: {
               include: {
-                lender: { select: { firstName: true, lastName: true } },
+                owner: {
+                  select: {
+                    user: { select: { firstName: true, lastName: true } },
+                  },
+                },
+                contact: {
+                  select: {
+                    user: { select: { firstName: true, lastName: true } },
+                  },
+                },
                 repayments: true,
               },
             },
@@ -136,9 +151,9 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         date: e.date,
         totalAmount,
         payers: e.payers.map((p) => ({
-          userId: p.userId,
-          firstName: p.user.firstName,
-          lastName: p.user.lastName,
+          payerId: p.payerId,
+          firstName: p.payer.firstName,
+          lastName: p.payer.lastName,
           amount: Number(p.amount),
           imputedToId: p.imputedToId ?? null,
           imputedToFirstName: p.imputedTo?.firstName ?? null,
@@ -153,7 +168,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     const investedByUser = new Map<string, number>();
     for (const expense of expenses) {
       for (const payer of expense.payers) {
-        const responsibleId = payer.imputedToId ?? payer.userId;
+        const responsibleId = payer.imputedToId ?? payer.payerId;
         investedByUser.set(
           responsibleId,
           (investedByUser.get(responsibleId) ?? 0) + payer.amount,
@@ -173,16 +188,16 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
 
     const participantSummaries: ParticipantSummary[] = vehicle.participants.map(
       (p) => {
-        const totalInvested = investedByUser.get(p.userId) ?? 0;
+        const totalInvested = investedByUser.get(p.contactId) ?? 0;
         const profitShare = Number(p.profitShare);
         const profitFromSale =
           profit !== null ? (profit * profitShare) / 100 : null;
         const amountToReceive =
           profitFromSale !== null ? totalInvested + profitFromSale : null;
         return {
-          userId: p.userId,
-          firstName: p.user.firstName,
-          lastName: p.user.lastName,
+          contactId: p.contactId,
+          firstName: p.contact.user.firstName,
+          lastName: p.contact.user.lastName,
           profitShare,
           totalInvested,
           profitFromSale,
@@ -198,11 +213,18 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         0,
       );
       const remaining = Math.max(0, amountDue - amountPaid);
+      // The recipient (who is owed) is the owner when role=LENDER, the
+      // contact when role=BORROWER.
+      const isOwnerLender = vd.debt.role === 'LENDER';
+      const recipientId = isOwnerLender ? vd.debt.ownerId : vd.debt.contactId;
+      const recipientInfo = isOwnerLender
+        ? vd.debt.owner.user
+        : vd.debt.contact.user;
       return {
         debtId: vd.debtId,
-        recipientId: vd.debt.lenderId,
-        recipientFirstName: vd.debt.lender.firstName,
-        recipientLastName: vd.debt.lender.lastName,
+        recipientId,
+        recipientFirstName: recipientInfo.firstName,
+        recipientLastName: recipientInfo.lastName,
         amountDue,
         amountPaid,
         remaining,
@@ -225,9 +247,9 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
       participants: vehicle.participants.map((p) => ({
-        userId: p.userId,
-        firstName: p.user.firstName,
-        lastName: p.user.lastName,
+        contactId: p.contactId,
+        firstName: p.contact.user.firstName,
+        lastName: p.contact.user.lastName,
         profitShare: Number(p.profitShare),
       })),
       expenses,

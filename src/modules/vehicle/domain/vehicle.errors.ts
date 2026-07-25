@@ -56,3 +56,21 @@ export class ExpenseHasRepaymentsError extends ExceptionBase {
     super(ExpenseHasRepaymentsError.message, cause, metadata);
   }
 }
+
+export class ExpenseImputationRequiresOwnerError extends ExceptionBase {
+  static readonly message =
+    'An imputed expense payment must involve the vehicle owner as either the payer or the recipient';
+  public readonly code = 'EXPENSE.IMPUTATION_REQUIRES_OWNER';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(ExpenseImputationRequiresOwnerError.message, cause, metadata);
+  }
+}
+
+export class VehicleSaleReimbursementRequiresOwnerError extends ExceptionBase {
+  static readonly message =
+    'A sale reimbursement must involve the vehicle owner as either the cashier or the participant being reimbursed';
+  public readonly code = 'VEHICLE.SALE_REIMBURSEMENT_REQUIRES_OWNER';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(VehicleSaleReimbursementRequiresOwnerError.message, cause, metadata);
+  }
+}

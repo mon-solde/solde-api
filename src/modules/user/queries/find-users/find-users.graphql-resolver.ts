@@ -27,12 +27,8 @@ export class FindUsersGraphqlResolver {
       ...paginated,
       data: paginated.data.map((user) => ({
         ...new ResponseBase(user),
-        email: user.email,
         firstName: user.firstName,
-        lastName: user.lastName,
-        // country: user.country,
-        // street: user.street,
-        // postalCode: user.postalCode,
+        lastName: user.lastName ?? undefined,
       })),
     });
     return response;

@@ -20,6 +20,10 @@ export class VehicleEntity extends AggregateRoot<VehicleProps> {
     return this.props.soldVehicle ? VehicleStatus.sold : VehicleStatus.active;
   }
 
+  get ownerId(): string {
+    return this.props.ownerId;
+  }
+
   get participants(): VehicleParticipantProps[] {
     return this.props.participants;
   }
@@ -28,8 +32,12 @@ export class VehicleEntity extends AggregateRoot<VehicleProps> {
     return !this.props.soldVehicle;
   }
 
-  isParticipant(userId: string): boolean {
-    return this.props.participants.some((p) => p.userId === userId);
+  isParticipant(contactId: string): boolean {
+    return this.props.participants.some((p) => p.contactId === contactId);
+  }
+
+  isOwner(userId: string): boolean {
+    return this.props.ownerId === userId;
   }
 
   sell(sold: SoldVehicleProps): void {

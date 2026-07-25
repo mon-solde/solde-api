@@ -1,7 +1,7 @@
 import { Command, CommandProps } from '@libs/ddd';
 
 export interface ExpensePayerProps {
-  userId: string;
+  payerId: string;
   amount: number;
   source: 'BANK' | 'CASH';
   imputedToId?: string;

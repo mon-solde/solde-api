@@ -1,5 +1,5 @@
 export interface VehicleParticipantProps {
-  userId: string;
+  contactId: string;
   profitShare: number;
 }
 
@@ -12,6 +12,7 @@ export interface SoldVehicleProps {
 }
 
 export interface VehicleProps {
+  ownerId: string;
   name: string;
   purchaseDate: Date;
   purchasePrice: number;
@@ -20,6 +21,7 @@ export interface VehicleProps {
 }
 
 export interface CreateVehicleProps {
+  ownerId: string;
   name: string;
   purchaseDate: Date;
   purchasePrice: number;

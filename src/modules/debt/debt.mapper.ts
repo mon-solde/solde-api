@@ -9,21 +9,32 @@ import { DebtResponseDto } from './dtos/debt.response.dto';
 export class DebtMapper
   implements Mapper<DebtEntity, DebtModel, DebtResponseDto>
 {
-  toPersistence(entity: DebtEntity): DebtModel {
-    const copy = entity.getProps();
-    return {
-      id: copy.id,
-      createdAt: copy.createdAt,
-      updatedAt: copy.updatedAt,
-      lenderId: copy.lenderId,
-      borrowerId: copy.borrowerId,
-      amount: copy.amount,
-      date: copy.date,
-      type: copy.type,
-    };
+  toPersistence(_entity: DebtEntity): DebtModel {
+    // Never actually called: debts are created via raw Prisma calls in the
+    // command services (create-debt / add-expense / declare-sale), which are
+    // the only places that know which side (owner or contact) the entity's
+    // lenderId/borrowerId correspond to. See debt.repository.ts comment.
+    throw new Error(
+      'DebtMapper.toPersistence is not supported — create debts via the ' +
+        'command services, not DebtRepository.insert()',
+    );
   }
 
   toDomain(record: DebtModel): DebtEntity {
+    const isLender = record.role === 'LENDER';
+    const lenderId = isLender ? record.ownerId : record.contactId;
+    const borrowerId = isLender ? record.contactId : record.ownerId;
+    const ownerInfo = record.owner?.user;
+    const contactInfo = record.contact?.user;
+    const lenderName = isLender
+      ? ownerInfo && `${ownerInfo.firstName} ${ownerInfo.lastName ?? ''}`.trim()
+      : contactInfo &&
+        `${contactInfo.firstName} ${contactInfo.lastName ?? ''}`.trim();
+    const borrowerName = isLender
+      ? contactInfo &&
+        `${contactInfo.firstName} ${contactInfo.lastName ?? ''}`.trim()
+      : ownerInfo && `${ownerInfo.firstName} ${ownerInfo.lastName ?? ''}`.trim();
+
     const isVehicle = record.type === DebtType.VEHICLE;
 
     if (isVehicle) {
@@ -32,14 +43,10 @@ export class DebtMapper
         createdAt: new Date(record.createdAt),
         updatedAt: new Date(record.updatedAt),
         props: {
-          lenderId: record.lenderId,
-          borrowerId: record.borrowerId,
-          lenderName: record.lender
-            ? `${record.lender.firstName} ${record.lender.lastName}`
-            : undefined,
-          borrowerName: record.borrower
-            ? `${record.borrower.firstName} ${record.borrower.lastName}`
-            : undefined,
+          lenderId,
+          borrowerId,
+          lenderName: lenderName || undefined,
+          borrowerName: borrowerName || undefined,
           amount: Number(record.amount),
           date: new Date(record.date),
           type: DebtType.VEHICLE,
@@ -61,14 +68,10 @@ export class DebtMapper
       createdAt: new Date(record.createdAt),
       updatedAt: new Date(record.updatedAt),
       props: {
-        lenderId: record.lenderId,
-        borrowerId: record.borrowerId,
-        lenderName: record.lender
-          ? `${record.lender.firstName} ${record.lender.lastName}`
-          : undefined,
-        borrowerName: record.borrower
-          ? `${record.borrower.firstName} ${record.borrower.lastName}`
-          : undefined,
+        lenderId,
+        borrowerId,
+        lenderName: lenderName || undefined,
+        borrowerName: borrowerName || undefined,
         amount: Number(record.amount),
         date: new Date(record.date),
         type: DebtType.MANUAL,

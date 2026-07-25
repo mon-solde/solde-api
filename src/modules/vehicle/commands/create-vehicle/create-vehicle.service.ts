@@ -22,14 +22,16 @@ export class CreateVehicleService implements ICommandHandler {
       (sum, p) => sum + p.profitShare,
       0,
     );
-    // JS can't store decimals exactly: 33.33 × 3 gives 99.9999... instead of 100.
-    // We compare the distance to 100 and allow up to 0.001 for these machine rounding errors.
-    // Any human-visible gap (e.g. 99.99%) is rejected.
-    if (Math.abs(totalShare - 100) > 0.001) {
+    // participants here only lists the owner's contacts — the owner's own
+    // share is implicit (100 - sum of contact shares), so contacts must sum
+    // to AT MOST 100, not exactly 100. Same epsilon reasoning as before for
+    // JS floating point rounding.
+    if (totalShare - 100 > 0.001) {
       return Err(new VehicleProfitShareSumError());
     }
 
     const vehicle = VehicleEntity.create({
+      ownerId: command.ownerId,
       name: command.name,
       purchaseDate: command.purchaseDate,
       purchasePrice: command.purchasePrice,

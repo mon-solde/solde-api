@@ -8,26 +8,67 @@ datasource db {
 }
 
 
+enum UserRole {
+  ACCOUNT
+  CONTACT
+}
+
 model User {
-  id        String   @id // Firebase UID, or UUID for contacts without auth
+  id        String   @id // Firebase UID for a real account, generated UUID for a contact
   firstName String
-  lastName  String
+  lastName  String?
+  /// Discriminator: tells you whether to look up `account` or `contact` for
+  /// the additional fields, without probing both relations. Must stay in
+  /// sync with which of the two actually has a row for this userId — kept
+  /// consistent by always creating User + Account (or User + Contact)
+  /// together in the same transaction, never separately.
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account?
+  contact Contact?
+
+  expensePayments        ExpensePayer[] @relation("ExpensePayerUser")
+  imputedExpensePayments ExpensePayer[] @relation("ImputedExpensePayments")
+  cashedVehicles         SoldVehicle[]
+
+  @@map("users")
+}
+
+model Account {
+  userId    String   @id
   email     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vehicleParticipations  VehicleParticipant[]
-  expensePayments        ExpensePayer[]       @relation("ExpensePayerUser")
-  imputedExpensePayments ExpensePayer[]       @relation("ImputedExpensePayments")
-  cashedVehicles         SoldVehicle[]
-  wallet                Wallet?
-  lentDebts             Debt[]               @relation("Lender")
-  borrowedDebts         Debt[]               @relation("Borrower")
-  recurringCharges      RecurringCharge[]
-  monthlyBudgets        MonthlyBudget[]
-  manualSavingsEvents   ManualSavingsEvent[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("users")
+  wallet              Wallet?
+  contacts            Contact[]
+  ownedVehicles       Vehicle[]
+  debts               Debt[]
+  recurringCharges    RecurringCharge[]
+  monthlyBudgets      MonthlyBudget[]
+  manualSavingsEvents ManualSavingsEvent[]
+
+  @@map("accounts")
+}
+
+model Contact {
+  userId    String   @id
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owner Account @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+
+  debts          Debt[]
+  participations VehicleParticipant[]
+
+  @@index([ownerId])
+  @@map("contacts")
 }
 
 model Wallet {
@@ -36,22 +77,24 @@ model Wallet {
   updatedAt DateTime @updatedAt
   balance   Int      @default(0)
   userId    String   @unique
-  /// Cascade: without Cascade, deleting a user fails (FK constraint).
+  /// Cascade: without Cascade, deleting an account fails (FK constraint).
   /// Domain events are published after the DB delete, so they can't
-  /// clean up the wallet before the user is removed.
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// clean up the wallet before the account is removed.
+  account   Account  @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("wallets")
 }
 
 model Vehicle {
   id            String   @id
+  ownerId       String
   name          String
   purchaseDate  DateTime
   purchasePrice Decimal
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  owner        Account              @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
   participants VehicleParticipant[]
   expenses     Expense[]
   soldVehicle  SoldVehicle?
@@ -71,6 +114,8 @@ model SoldVehicle {
   updatedAt DateTime      @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  /// User (not Account/Contact directly): either the account owner or one of
+  /// their contacts can be the one who physically cashed the sale.
   cashier User    @relation(fields: [cashierId], references: [id])
 
   @@map("sold_vehicles")
@@ -78,13 +123,13 @@ model SoldVehicle {
 
 model VehicleParticipant {
   vehicleId   String
-  userId      String
+  contactId   String
   profitShare Decimal
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id])
+  contact Contact @relation(fields: [contactId], references: [userId], onDelete: Cascade)
 
-  @@id([vehicleId, userId])
+  @@id([vehicleId, contactId])
   @@map("vehicle_participants")
 }
 
@@ -106,16 +151,18 @@ model Expense {
 model ExpensePayer {
   id          String        @id @default(uuid())
   expenseId   String
-  userId      String
+  payerId     String
   amount      Decimal
   source      SavingsSource @default(BANK)
   imputedToId String?
 
-  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  user      User    @relation("ExpensePayerUser", fields: [userId], references: [id])
-  imputedTo User?   @relation("ImputedExpensePayments", fields: [imputedToId], references: [id])
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  /// User (not Account/Contact directly): either the account owner or one of
+  /// their contacts can be the one who paid.
+  payer     User  @relation("ExpensePayerUser", fields: [payerId], references: [id])
+  imputedTo User? @relation("ImputedExpensePayments", fields: [imputedToId], references: [id])
 
-  @@index([expenseId, userId])
+  @@index([expenseId, payerId])
   @@map("expense_payers")
 }
 
@@ -127,18 +174,27 @@ enum DebtType {
   EXPENSE
 }
 
-model Debt {
-  id         String   @id
-  lenderId   String
-  borrowerId String
-  amount     Decimal
-  date       DateTime
-  type       DebtType
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+enum DebtRole {
+  LENDER
+  BORROWER
+}
 
-  lender      User         @relation("Lender", fields: [lenderId], references: [id])
-  borrower    User         @relation("Borrower", fields: [borrowerId], references: [id])
+model Debt {
+  id        String   @id
+  ownerId   String
+  contactId String
+  role      DebtRole
+  amount    Decimal
+  date      DateTime
+  type      DebtType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner Account @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  /// No onDelete: Cascade on purpose — the default Restrict blocks deleting a
+  /// contact that still has open debts.
+  contact Contact @relation(fields: [contactId], references: [userId])
+
   repayments  Repayment[]
   manualDebt  ManualDebt?
   vehicleDebt VehicleDebt?
@@ -212,8 +268,8 @@ model RecurringCharge {
   dueDay     Int?
   inactiveAt DateTime?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  account Account @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   monthlyAutomaticEntries MonthlyAutomaticDeduction[]
   monthlyManualEntries    MonthlyManualAction[]
@@ -232,10 +288,10 @@ model MonthlyBudget {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user                     User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  automaticDeductions      MonthlyAutomaticDeduction[]
-  manualActions            MonthlyManualAction[]
-  savingsWithdrawals       MonthlyBudgetSavingsWithdrawal[]
+  account             Account                          @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  automaticDeductions MonthlyAutomaticDeduction[]
+  manualActions       MonthlyManualAction[]
+  savingsWithdrawals  MonthlyBudgetSavingsWithdrawal[]
 
   @@unique([userId, year, month])
   @@map("monthly_budgets")
@@ -288,13 +344,13 @@ model ActionPayment {
 }
 
 model MonthlyBudgetSavingsWithdrawal {
-  id       String             @id
-  budgetId String
-  amount   Decimal
-  source   SavingsSource
-  date     DateTime
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id        String        @id
+  budgetId  String
+  amount    Decimal
+  source    SavingsSource
+  date      DateTime
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   budget MonthlyBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
@@ -314,17 +370,17 @@ enum SavingsMovementKind {
 }
 
 model ManualSavingsEvent {
-  id           String              @id
-  userId       String
-  kind         SavingsMovementKind
-  source       SavingsSource
-  amount       Decimal
-  label        String
-  date         DateTime
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id        String              @id
+  userId    String
+  kind      SavingsMovementKind
+  source    SavingsSource
+  amount    Decimal
+  label     String
+  date      DateTime
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("manual_savings_events")
 }

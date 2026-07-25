@@ -14,9 +14,8 @@ export class UserMapper
       id: copy.id,
       createdAt: copy.createdAt,
       updatedAt: copy.updatedAt,
-      email: copy.email,
       firstName: copy.firstName,
-      lastName: copy.lastName,
+      lastName: copy.lastName ?? null,
     };
   }
 
@@ -26,9 +25,8 @@ export class UserMapper
       createdAt: new Date(record.createdAt),
       updatedAt: new Date(record.updatedAt),
       props: {
-        email: record.email,
         firstName: record.firstName,
-        lastName: record.lastName,
+        lastName: record.lastName ?? undefined,
       },
     });
   }
@@ -36,7 +34,6 @@ export class UserMapper
   toResponse(entity: UserEntity): UserResponseDto {
     const props = entity.getProps();
     const response = new UserResponseDto(entity);
-    response.email = props.email;
     response.firstName = props.firstName;
     response.lastName = props.lastName;
     return response;

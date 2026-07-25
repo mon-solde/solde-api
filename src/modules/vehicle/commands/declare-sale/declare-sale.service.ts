@@ -10,6 +10,7 @@ import {
   VehicleAlreadySoldError,
   VehicleCashierNotParticipantError,
   VehicleNotFoundError,
+  VehicleSaleReimbursementRequiresOwnerError,
 } from '@modules/vehicle/domain/vehicle.errors';
 import { DeclareSaleCommand } from './declare-sale.command';
 
@@ -29,6 +30,7 @@ export class DeclareSaleService implements ICommandHandler {
       | VehicleNotFoundError
       | VehicleAlreadySoldError
       | VehicleCashierNotParticipantError
+      | VehicleSaleReimbursementRequiresOwnerError
     >
   > {
     const found = await this.vehicleRepo.findOneById(command.vehicleId);
@@ -36,8 +38,43 @@ export class DeclareSaleService implements ICommandHandler {
 
     const vehicle = found.unwrap();
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
-    if (!vehicle.isParticipant(command.cashierId))
+    const cashierIsOwner = vehicle.isOwner(command.cashierId);
+    if (!cashierIsOwner && !vehicle.isParticipant(command.cashierId))
       return Err(new VehicleCashierNotParticipantError());
+
+    // Beneficiaries of the sale: every contact-participant, plus the owner's
+    // own implicit share (100 minus the sum of contact shares — never a row
+    // in `participants` themselves).
+    const contactShareSum = vehicle.participants.reduce(
+      (sum, p) => sum + p.profitShare,
+      0,
+    );
+    const ownerShare = 100 - contactShareSum;
+    const beneficiaries: Array<{ id: string; profitShare: number }> = [
+      ...vehicle.participants.map((p) => ({
+        id: p.contactId,
+        profitShare: p.profitShare,
+      })),
+      ...(ownerShare > 0.001
+        ? [{ id: vehicle.ownerId, profitShare: ownerShare }]
+        : []),
+    ];
+    const nonCashierBeneficiaries = beneficiaries.filter(
+      (b) => b.id !== command.cashierId,
+    );
+
+    // A Debt always needs the owner on one side. If the cashier is a
+    // contact, the owner must be the only remaining beneficiary — any other
+    // contact owed by another contact can't be represented (see
+    // VehicleSaleReimbursementRequiresOwnerError doc).
+    if (!cashierIsOwner) {
+      const hasUnrepresentableDebt = nonCashierBeneficiaries.some(
+        (b) => b.id !== vehicle.ownerId,
+      );
+      if (hasUnrepresentableDebt) {
+        return Err(new VehicleSaleReimbursementRequiresOwnerError());
+      }
+    }
 
     vehicle.sell({
       id: randomUUID(),
@@ -49,14 +86,7 @@ export class DeclareSaleService implements ICommandHandler {
 
     await this.vehicleRepo.save(vehicle);
 
-    // For each participant who didn't cash the sale, create a vehicle debt:
-    // the cashier (borrower) owes them (lender) their share of the proceeds.
-    const nonCashierParticipants = vehicle.participants.filter(
-      (p) => p.userId !== command.cashierId,
-    );
-
-    if (nonCashierParticipants.length > 0) {
-      // Recompute amountToReceive for each participant from the sale data
+    if (nonCashierBeneficiaries.length > 0) {
       const totalExpenses = await this.prisma.expensePayer.aggregate({
         _sum: { amount: true },
         where: { expense: { vehicleId: command.vehicleId } },
@@ -64,26 +94,30 @@ export class DeclareSaleService implements ICommandHandler {
       const totalExpensesAmount = Number(totalExpenses._sum.amount ?? 0);
       const profit = command.salePrice - totalExpensesAmount;
 
-      for (const participant of nonCashierParticipants) {
+      for (const beneficiary of nonCashierBeneficiaries) {
         const invested = await this.prisma.expensePayer.aggregate({
           _sum: { amount: true },
           where: {
-            userId: participant.userId,
+            payerId: beneficiary.id,
             expense: { vehicleId: command.vehicleId },
           },
         });
         const totalInvested = Number(invested._sum.amount ?? 0);
-        const profitShare = (profit * participant.profitShare) / 100;
-        const amountToReceive = totalInvested + profitShare;
+        const profitShareAmount = (profit * beneficiary.profitShare) / 100;
+        const amountToReceive = totalInvested + profitShareAmount;
 
         if (amountToReceive <= 0) continue;
 
         const debtId = randomUUID();
+        // cashierIsOwner => beneficiary is always a contact owed by the
+        // owner-cashier (owner borrows). Otherwise beneficiary is always the
+        // owner, owed by the contact-cashier (owner lends).
         await this.prisma.debt.create({
           data: {
             id: debtId,
-            lenderId: participant.userId,
-            borrowerId: command.cashierId,
+            ownerId: vehicle.ownerId,
+            contactId: cashierIsOwner ? beneficiary.id : command.cashierId,
+            role: cashierIsOwner ? 'BORROWER' : 'LENDER',
             amount: amountToReceive,
             date: command.soldAt,
             type: 'VEHICLE',

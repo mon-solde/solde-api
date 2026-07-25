@@ -14,10 +14,10 @@ import {
 } from 'class-validator';
 
 export class CreateVehicleParticipantDto {
-  @ApiProperty({ example: 'firebase-uid-123', description: 'User ID' })
+  @ApiProperty({ example: 'contact-uuid-123', description: 'Contact ID' })
   @IsString()
   @IsNotEmpty()
-  readonly userId: string;
+  readonly contactId: string;
 
   @ApiProperty({ example: 70, description: 'Profit share percentage (0-100)' })
   @IsNumber()
@@ -27,6 +27,13 @@ export class CreateVehicleParticipantDto {
 }
 
 export class CreateVehicleRequestDto {
+  // TODO: derive from the authenticated account once auth is wired up on
+  // this endpoint — for now it's an explicit field in the request body.
+  @ApiProperty({ example: 'firebase-uid-123', description: 'Owner account ID' })
+  @IsString()
+  @IsNotEmpty()
+  readonly ownerId: string;
+
   @ApiProperty({ example: 'Audi A5 2018' })
   @IsString()
   @IsNotEmpty()

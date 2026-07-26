@@ -47,7 +47,12 @@ export class VehicleMapper
               salePrice: Number(record.soldVehicle.salePrice),
               soldAt: new Date(record.soldVehicle.soldAt),
               cashierId: record.soldVehicle.cashierId,
-              source: record.soldVehicle.source as 'BANK' | 'CASH',
+              bankAmount: record.soldVehicle.bankAmount
+                ? Number(record.soldVehicle.bankAmount)
+                : undefined,
+              cashAmount: record.soldVehicle.cashAmount
+                ? Number(record.soldVehicle.cashAmount)
+                : undefined,
             }
           : undefined,
       },
@@ -65,6 +70,7 @@ export class VehicleMapper
       contactId: p.contactId,
       profitShare: p.profitShare,
     }));
+    response.ownerProfitShare = entity.ownerProfitShare;
     return response;
   }
 }

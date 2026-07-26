@@ -24,9 +24,12 @@ export class ExpensePayerDto {
   @Min(0)
   readonly amount: number;
 
-  @ApiProperty({ example: 'BANK', enum: ['BANK', 'CASH'] })
+  // Only meaningful when this payer is the account owner — see
+  // add-expense.service.ts for the rule that enforces this.
+  @ApiPropertyOptional({ example: 'BANK', enum: ['BANK', 'CASH'] })
+  @IsOptional()
   @IsIn(['BANK', 'CASH'])
-  readonly source: 'BANK' | 'CASH';
+  readonly source?: 'BANK' | 'CASH';
 
   @ApiPropertyOptional({ example: 'firebase-uid-456' })
   @IsOptional()

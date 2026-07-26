@@ -57,6 +57,15 @@ export class ExpenseHasRepaymentsError extends ExceptionBase {
   }
 }
 
+export class ExpenseSourceRequiredForOwnerError extends ExceptionBase {
+  static readonly message =
+    "The vehicle owner's payment must specify where the money came from (bank or cash)";
+  public readonly code = 'EXPENSE.SOURCE_REQUIRED_FOR_OWNER';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(ExpenseSourceRequiredForOwnerError.message, cause, metadata);
+  }
+}
+
 export class ExpenseImputationRequiresOwnerError extends ExceptionBase {
   static readonly message =
     'An imputed expense payment must involve the vehicle owner as either the payer or the recipient';

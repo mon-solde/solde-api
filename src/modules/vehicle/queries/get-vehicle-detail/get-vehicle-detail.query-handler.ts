@@ -20,10 +20,18 @@ export type ParticipantSummary = {
   amountToReceive: number | null;
 };
 
+export type OwnerSummary = {
+  profitShare: number;
+  totalInvested: number;
+  profitFromSale: number | null;
+  amountToReceive: number | null;
+};
+
 export type FinancialSummary = {
   totalExpenses: number;
   profit: number | null;
   cashierId: string | null;
+  owner: OwnerSummary;
   participants: ParticipantSummary[];
 };
 
@@ -87,6 +95,25 @@ export type VehicleDetail = {
   financialSummary: FinancialSummary;
   reversements: ReversementDetail[];
 };
+
+// The owner is never a stored VehicleParticipant row (see VehicleEntity.ownerProfitShare)
+// — their share is always whatever the participants haven't claimed.
+function buildOwnerSummary(
+  vehicle: { ownerId: string; participants: { profitShare: unknown }[] },
+  investedByUser: Map<string, number>,
+  profit: number | null,
+): OwnerSummary {
+  const participantsShare = vehicle.participants.reduce(
+    (sum, p) => sum + Number(p.profitShare),
+    0,
+  );
+  const profitShare = 100 - participantsShare;
+  const totalInvested = investedByUser.get(vehicle.ownerId) ?? 0;
+  const profitFromSale = profit !== null ? (profit * profitShare) / 100 : null;
+  const amountToReceive =
+    profitFromSale !== null ? totalInvested + profitFromSale : null;
+  return { profitShare, totalInvested, profitFromSale, amountToReceive };
+}
 
 @QueryHandler(GetVehicleDetailQuery)
 export class GetVehicleDetailQueryHandler implements IQueryHandler {
@@ -264,6 +291,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         totalExpenses,
         profit,
         cashierId,
+        owner: buildOwnerSummary(vehicle, investedByUser, profit),
         participants: participantSummaries,
       },
       reversements,

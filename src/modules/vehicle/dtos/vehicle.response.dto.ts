@@ -25,4 +25,10 @@ export class VehicleResponseDto extends ResponseBase {
 
   @ApiProperty({ type: [VehicleParticipantResponseDto] })
   participants: VehicleParticipantResponseDto[];
+
+  @ApiProperty({
+    example: 30,
+    description: "Owner's implicit share — 100 minus the participants' shares",
+  })
+  ownerProfitShare: number;
 }

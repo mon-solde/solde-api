@@ -46,7 +46,8 @@ export class DeclareSaleHttpController {
       salePrice: body.salePrice,
       soldAt: new Date(body.soldAt),
       cashierId: body.cashierId,
-      source: body.source,
+      bankAmount: body.bankAmount,
+      cashAmount: body.cashAmount,
     });
 
     const result: Result<

@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { BadRequestException, Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
@@ -13,6 +13,28 @@ import {
   VehicleSaleReimbursementRequiresOwnerError,
 } from '@modules/vehicle/domain/vehicle.errors';
 import { DeclareSaleCommand } from './declare-sale.command';
+
+type ExpensePaymentRecord = {
+  payerId: string;
+  imputedToId: string | null;
+  amount: unknown; // Prisma Decimal
+};
+
+// Money someone paid but delegated to someone else isn't really their own
+// investment — it's the delegate's, who already owes it back separately
+// (see add-expense.service.ts). Counting it here too would pay the payer
+// twice for the same money.
+function computeInvestedByResponsibleParty(
+  payments: ExpensePaymentRecord[],
+): Map<string, number> {
+  const investedByUser = new Map<string, number>();
+  for (const payment of payments) {
+    const responsibleId = payment.imputedToId ?? payment.payerId;
+    const amount = Number(payment.amount);
+    investedByUser.set(responsibleId, (investedByUser.get(responsibleId) ?? 0) + amount);
+  }
+  return investedByUser;
+}
 
 @CommandHandler(DeclareSaleCommand)
 export class DeclareSaleService implements ICommandHandler {
@@ -41,6 +63,17 @@ export class DeclareSaleService implements ICommandHandler {
     const cashierIsOwner = vehicle.isOwner(command.cashierId);
     if (!cashierIsOwner && !vehicle.isParticipant(command.cashierId))
       return Err(new VehicleCashierNotParticipantError());
+
+    // Bank/cash split is only meaningful for the owner's own tracked
+    // balances — a contact cashing the sale never affects them.
+    const bankAmount = cashierIsOwner ? command.bankAmount ?? 0 : 0;
+    const cashAmount = cashierIsOwner ? command.cashAmount ?? 0 : 0;
+    const epsilon = 0.001;
+    if (cashierIsOwner && Math.abs(bankAmount + cashAmount - command.salePrice) > epsilon) {
+      throw new BadRequestException(
+        `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au prix de vente (${command.salePrice})`,
+      );
+    }
 
     // Beneficiaries of the sale: every contact-participant, plus the owner's
     // own implicit share (100 minus the sum of contact shares — never a row
@@ -81,28 +114,26 @@ export class DeclareSaleService implements ICommandHandler {
       salePrice: command.salePrice,
       soldAt: command.soldAt,
       cashierId: command.cashierId,
-      source: command.source,
+      bankAmount: cashierIsOwner ? bankAmount : undefined,
+      cashAmount: cashierIsOwner ? cashAmount : undefined,
     });
 
     await this.vehicleRepo.save(vehicle);
 
     if (nonCashierBeneficiaries.length > 0) {
-      const totalExpenses = await this.prisma.expensePayer.aggregate({
-        _sum: { amount: true },
+      const payments = await this.prisma.expensePayer.findMany({
         where: { expense: { vehicleId: command.vehicleId } },
+        select: { payerId: true, imputedToId: true, amount: true },
       });
-      const totalExpensesAmount = Number(totalExpenses._sum.amount ?? 0);
+      const totalExpensesAmount = payments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0,
+      );
       const profit = command.salePrice - totalExpensesAmount;
+      const investedByUser = computeInvestedByResponsibleParty(payments);
 
       for (const beneficiary of nonCashierBeneficiaries) {
-        const invested = await this.prisma.expensePayer.aggregate({
-          _sum: { amount: true },
-          where: {
-            payerId: beneficiary.id,
-            expense: { vehicleId: command.vehicleId },
-          },
-        });
-        const totalInvested = Number(invested._sum.amount ?? 0);
+        const totalInvested = investedByUser.get(beneficiary.id) ?? 0;
         const profitShareAmount = (profit * beneficiary.profitShare) / 100;
         const amountToReceive = totalInvested + profitShareAmount;
 

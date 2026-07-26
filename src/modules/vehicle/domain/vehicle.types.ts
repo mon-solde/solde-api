@@ -8,7 +8,8 @@ export interface SoldVehicleProps {
   salePrice: number;
   soldAt: Date;
   cashierId: string;
-  source: 'BANK' | 'CASH';
+  bankAmount?: number;
+  cashAmount?: number;
 }
 
 export interface VehicleProps {

@@ -23,7 +23,8 @@ export type SoldVehicleRecord = {
   salePrice: any; // Prisma Decimal
   soldAt: Date;
   cashierId: string;
-  source: string;
+  bankAmount?: any | null; // Prisma Decimal
+  cashAmount?: any | null; // Prisma Decimal
 };
 
 export type VehicleModel = {
@@ -108,7 +109,8 @@ export class VehicleRepository
                 salePrice: props.soldVehicle.salePrice,
                 soldAt: props.soldVehicle.soldAt,
                 cashierId: props.soldVehicle.cashierId,
-                source: props.soldVehicle.source,
+                bankAmount: props.soldVehicle.bankAmount ?? null,
+                cashAmount: props.soldVehicle.cashAmount ?? null,
               },
             }),
           ]

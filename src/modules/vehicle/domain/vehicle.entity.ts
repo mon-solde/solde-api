@@ -28,6 +28,17 @@ export class VehicleEntity extends AggregateRoot<VehicleProps> {
     return this.props.participants;
   }
 
+  // The owner's share is never stored — it's always whatever the
+  // participants haven't claimed, so it can never drift out of sync with
+  // their shares.
+  get ownerProfitShare(): number {
+    const participantsShare = this.props.participants.reduce(
+      (sum, p) => sum + p.profitShare,
+      0,
+    );
+    return 100 - participantsShare;
+  }
+
   get isActive(): boolean {
     return !this.props.soldVehicle;
   }

@@ -7,7 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 enum UserRole {
   ACCOUNT
   CONTACT
@@ -56,10 +55,14 @@ model Account {
 }
 
 model Contact {
-  userId    String   @id
+  userId    String    @id
   ownerId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Soft-delete marker. A contact with real history (debts, expense
+  /// payments, vehicle sale cashier) can't be hard-deleted without breaking
+  /// that history's readability — see ContactRepository.delete().
+  deletedAt DateTime?
 
   user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   owner Account @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
@@ -104,14 +107,19 @@ model Vehicle {
 }
 
 model SoldVehicle {
-  id        String        @id
-  vehicleId String        @unique
+  id        String   @id
+  vehicleId String   @unique
   salePrice Decimal
   soldAt    DateTime
   cashierId String
-  source    SavingsSource @default(BANK)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  /// Only meaningful when the cashier is the account owner — same reasoning
+  /// as ExpensePayer.source. Split across both like ManualDebt.bankAmount/
+  /// cashAmount, since a sale can genuinely be paid partly by transfer,
+  /// partly in cash.
+  bankAmount Decimal?
+  cashAmount Decimal?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   /// User (not Account/Contact directly): either the account owner or one of
@@ -121,6 +129,7 @@ model SoldVehicle {
   @@map("sold_vehicles")
 }
 
+// Co-owners* because the user who created the vehicle record is already a partipant via ownerId
 model VehicleParticipant {
   vehicleId   String
   contactId   String
@@ -149,18 +158,21 @@ model Expense {
 }
 
 model ExpensePayer {
-  id          String        @id @default(uuid())
-  expenseId   String
-  payerId     String
-  amount      Decimal
-  source      SavingsSource @default(BANK)
+  id        String  @id @default(uuid())
+  expenseId String
+  payerId   String
+  amount    Decimal
+  /// Only meaningful when the payer is the account owner — it tracks which
+  /// of their own money pools (bank/cash) got debited. Null for a contact:
+  /// their money never touches the owner's tracked balances.
+  source      SavingsSource?
   imputedToId String?
 
-  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   /// User (not Account/Contact directly): either the account owner or one of
   /// their contacts can be the one who paid.
-  payer     User  @relation("ExpensePayerUser", fields: [payerId], references: [id])
-  imputedTo User? @relation("ImputedExpensePayments", fields: [imputedToId], references: [id])
+  payer     User    @relation("ExpensePayerUser", fields: [payerId], references: [id])
+  imputedTo User?   @relation("ImputedExpensePayments", fields: [imputedToId], references: [id])
 
   @@index([expenseId, payerId])
   @@map("expense_payers")
@@ -190,7 +202,7 @@ model Debt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner Account @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  owner   Account @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
   /// No onDelete: Cascade on purpose — the default Restrict blocks deleting a
   /// contact that still has open debts.
   contact Contact @relation(fields: [contactId], references: [userId])

@@ -7,6 +7,7 @@ import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.reposit
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
   ExpenseImputationRequiresOwnerError,
+  ExpenseSourceRequiredForOwnerError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
@@ -28,6 +29,7 @@ export class AddExpenseService implements ICommandHandler {
       | VehicleNotFoundError
       | VehicleAlreadySoldError
       | ExpenseImputationRequiresOwnerError
+      | ExpenseSourceRequiredForOwnerError
     >
   > {
     const found = await this.vehicleRepo.findOneById(command.vehicleId);
@@ -35,6 +37,13 @@ export class AddExpenseService implements ICommandHandler {
 
     const vehicle = found.unwrap();
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
+
+    const ownerPayerMissingSource = command.payers.find(
+      (p) => p.payerId === vehicle.ownerId && !p.source,
+    );
+    if (ownerPayerMissingSource) {
+      return Err(new ExpenseSourceRequiredForOwnerError());
+    }
 
     const delegatedPayers = command.payers.filter(
       (p) => p.imputedToId && p.imputedToId !== p.payerId,
@@ -52,12 +61,19 @@ export class AddExpenseService implements ICommandHandler {
 
     const expenseId = randomUUID();
 
+    // Source only means anything for the owner's own payment — a contact's
+    // money never touches the owner's tracked bank/cash balances.
+    const payers = command.payers.map((p) => ({
+      ...p,
+      source: p.payerId === vehicle.ownerId ? p.source : undefined,
+    }));
+
     await this.vehicleRepo.insertExpense({
       id: expenseId,
       vehicleId: command.vehicleId,
       label: command.label,
       date: command.date,
-      payers: command.payers,
+      payers,
     });
 
     if (delegatedPayers.length > 0) {

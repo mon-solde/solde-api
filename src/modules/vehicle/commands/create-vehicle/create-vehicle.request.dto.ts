@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  ArrayMinSize,
   IsArray,
   IsDateString,
   IsNotEmpty,
@@ -49,9 +48,10 @@ export class CreateVehicleRequestDto {
   @Min(0)
   readonly purchasePrice: number;
 
+  // Can be empty — a vehicle with no co-owners is 100% owned by the account
+  // creating it.
   @ApiProperty({ type: [CreateVehicleParticipantDto] })
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateVehicleParticipantDto)
   readonly participants: CreateVehicleParticipantDto[];

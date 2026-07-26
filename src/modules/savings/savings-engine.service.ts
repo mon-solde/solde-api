@@ -184,7 +184,7 @@ export class SavingsEngine {
           id: true,
           name: true,
           soldVehicle: {
-            select: { salePrice: true, soldAt: true, source: true },
+            select: { soldAt: true, bankAmount: true, cashAmount: true },
           },
         },
       }),
@@ -325,17 +325,30 @@ export class SavingsEngine {
     for (const vehicle of vehicleSales) {
       if (!vehicle.soldVehicle) continue;
 
-      const salePrice = Number(vehicle.soldVehicle.salePrice);
+      const label = `Vente de ${vehicle.name}`;
+      const bankAmount = Number(vehicle.soldVehicle.bankAmount ?? 0);
+      const cashAmount = Number(vehicle.soldVehicle.cashAmount ?? 0);
 
-      items.push({
-        id: `vehicle-sale-${vehicle.id}`,
-        kind: 'ADDITION',
-        source: vehicle.soldVehicle.source as SavingsSource,
-        amount: salePrice,
-        label: `Vente de ${vehicle.name}`,
-        date: vehicle.soldVehicle.soldAt,
-        sourceType: 'VEHICLE_SALE',
-      });
+      if (bankAmount > 0)
+        items.push({
+          id: `vehicle-sale-${vehicle.id}-bank`,
+          kind: 'ADDITION',
+          source: 'BANK',
+          amount: bankAmount,
+          label,
+          date: vehicle.soldVehicle.soldAt,
+          sourceType: 'VEHICLE_SALE',
+        });
+      if (cashAmount > 0)
+        items.push({
+          id: `vehicle-sale-${vehicle.id}-cash`,
+          kind: 'ADDITION',
+          source: 'CASH',
+          amount: cashAmount,
+          label,
+          date: vehicle.soldVehicle.soldAt,
+          sourceType: 'VEHICLE_SALE',
+        });
     }
 
     return items.sort((a, b) => b.date.getTime() - a.date.getTime());

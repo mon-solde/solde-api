@@ -6,7 +6,7 @@ export interface InsertExpenseParams {
   vehicleId: string;
   label: string;
   date: Date;
-  payers: Array<{ payerId: string; amount: number; source: 'BANK' | 'CASH'; imputedToId?: string }>;
+  payers: Array<{ payerId: string; amount: number; source?: 'BANK' | 'CASH'; imputedToId?: string }>;
 }
 
 export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {

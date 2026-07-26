@@ -8,6 +8,4 @@ export interface FindUsersParams extends PaginatedQueryParams {
   readonly name?: string;
 }
 
-export interface UserRepositoryPort extends RepositoryPort<UserEntity> {
-  findOneByEmail(email: string): Promise<UserEntity | null>;
-}
+export interface UserRepositoryPort extends RepositoryPort<UserEntity> {}

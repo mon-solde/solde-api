@@ -5,7 +5,8 @@ export class DeclareSaleCommand extends Command {
   readonly salePrice: number;
   readonly soldAt: Date;
   readonly cashierId: string;
-  readonly source: 'BANK' | 'CASH';
+  readonly bankAmount?: number;
+  readonly cashAmount?: number;
 
   constructor(props: CommandProps<DeclareSaleCommand>) {
     super(props);
@@ -13,6 +14,7 @@ export class DeclareSaleCommand extends Command {
     this.salePrice = props.salePrice;
     this.soldAt = props.soldAt;
     this.cashierId = props.cashierId;
-    this.source = props.source;
+    this.bankAmount = props.bankAmount;
+    this.cashAmount = props.cashAmount;
   }
 }

@@ -6,6 +6,7 @@ import { UserModule } from '@modules/user/user.module';
 import { VehicleModule } from '@modules/vehicle/vehicle.module';
 import { WalletModule } from '@modules/wallet/wallet.module';
 import { DebtModule } from '@modules/debt/debt.module';
+import { ContactModule } from '@modules/contact/contact.module';
 import { RecurringChargeModule } from '@modules/recurring-charge/recurring-charge.module';
 import { MonthlyBudgetModule } from '@modules/monthly-budget/monthly-budget.module';
 import { SavingsModule } from '@modules/savings/savings.module';
@@ -47,6 +48,7 @@ const interceptors = [
     UserModule,
     WalletModule,
     DebtModule,
+    ContactModule,
     RecurringChargeModule,
     MonthlyBudgetModule,
     SavingsModule,

@@ -10,9 +10,8 @@ export type UserModel = {
   id: string;
   createdAt: Date;
   updatedAt: Date;
-  email: string;
   firstName: string;
-  lastName: string;
+  lastName: string | null;
 };
 
 @Injectable()
@@ -28,12 +27,5 @@ export class UserRepository
     eventEmitter: EventEmitter2,
   ) {
     super(prisma, mapper, eventEmitter, new Logger(UserRepository.name));
-  }
-
-  async findOneByEmail(email: string): Promise<UserEntity> {
-    const user = await this.client.user.findUniqueOrThrow({
-      where: { email },
-    });
-    return this.mapper.toDomain(user);
   }
 }

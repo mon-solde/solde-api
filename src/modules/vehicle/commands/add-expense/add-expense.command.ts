@@ -1,9 +1,10 @@
 import { Command, CommandProps } from '@libs/ddd';
 
 export interface ExpensePayerProps {
-  userId: string;
+  payerId: string;
   amount: number;
-  source: 'BANK' | 'CASH';
+  // Only meaningful when payerId is the vehicle owner — see add-expense.service.ts.
+  source?: 'BANK' | 'CASH';
   imputedToId?: string;
 }
 

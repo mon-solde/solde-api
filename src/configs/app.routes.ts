@@ -8,6 +8,7 @@ const usersRoot = 'users';
 const vehiclesRoot = 'vehicles';
 const walletsRoot = 'wallets';
 const debtsRoot = 'debts';
+const contactsRoot = 'contacts';
 const recurringChargesRoot = 'recurring-charges';
 const savingsRoot = 'savings/events';
 const registrationFlowsRoot = 'registration-flows';
@@ -42,6 +43,11 @@ export const routesV1 = {
     byId: `${debtsRoot}/:id`,
     repayments: `${debtsRoot}/:id/repayments`,
     repaymentById: `${debtsRoot}/:id/repayments/:repaymentId`,
+  },
+  contact: {
+    root: contactsRoot,
+    byId: `${contactsRoot}/:id`,
+    reactivate: `${contactsRoot}/:id/reactivate`,
   },
   monthlyBudget: {
     root: 'monthly-budgets',

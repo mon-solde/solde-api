@@ -19,9 +19,9 @@ export type VehicleListItem = {
   createdAt: Date;
   updatedAt: Date;
   participants: Array<{
-    userId: string;
+    contactId: string;
     firstName: string;
-    lastName: string;
+    lastName: string | null;
     profitShare: number;
   }>;
   totalExpenses: number;
@@ -45,7 +45,13 @@ export class FindVehiclesQueryHandler implements IQueryHandler {
       where,
       include: {
         participants: {
-          include: { user: { select: { firstName: true, lastName: true } } },
+          include: {
+            contact: {
+              include: {
+                user: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
         },
         expenses: { include: { payers: true } },
         soldVehicle: true,
@@ -68,9 +74,9 @@ export class FindVehiclesQueryHandler implements IQueryHandler {
         createdAt: v.createdAt,
         updatedAt: v.updatedAt,
         participants: v.participants.map((p) => ({
-          userId: p.userId,
-          firstName: p.user.firstName,
-          lastName: p.user.lastName,
+          contactId: p.contactId,
+          firstName: p.contact.user.firstName,
+          lastName: p.contact.user.lastName,
           profitShare: Number(p.profitShare),
         })),
         totalExpenses,

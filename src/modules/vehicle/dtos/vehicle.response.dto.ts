@@ -3,8 +3,8 @@ import { ResponseBase } from '@libs/api/response.base';
 import { VehicleStatus } from '../domain/vehicle.types';
 
 export class VehicleParticipantResponseDto {
-  @ApiProperty({ example: 'firebase-uid-123' })
-  userId: string;
+  @ApiProperty({ example: 'contact-uuid-123' })
+  contactId: string;
 
   @ApiProperty({ example: 70 })
   profitShare: number;
@@ -25,4 +25,10 @@ export class VehicleResponseDto extends ResponseBase {
 
   @ApiProperty({ type: [VehicleParticipantResponseDto] })
   participants: VehicleParticipantResponseDto[];
+
+  @ApiProperty({
+    example: 30,
+    description: "Owner's implicit share — 100 minus the participants' shares",
+  })
+  ownerProfitShare: number;
 }

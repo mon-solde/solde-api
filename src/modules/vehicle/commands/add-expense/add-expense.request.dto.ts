@@ -14,19 +14,22 @@ import {
 } from 'class-validator';
 
 export class ExpensePayerDto {
-  @ApiProperty({ example: 'firebase-uid-123' })
+  @ApiProperty({ example: 'firebase-uid-123 (owner) or a contact id' })
   @IsString()
   @IsNotEmpty()
-  readonly userId: string;
+  readonly payerId: string;
 
   @ApiProperty({ example: 681.69 })
   @IsNumber()
   @Min(0)
   readonly amount: number;
 
-  @ApiProperty({ example: 'BANK', enum: ['BANK', 'CASH'] })
+  // Only meaningful when this payer is the account owner — see
+  // add-expense.service.ts for the rule that enforces this.
+  @ApiPropertyOptional({ example: 'BANK', enum: ['BANK', 'CASH'] })
+  @IsOptional()
   @IsIn(['BANK', 'CASH'])
-  readonly source: 'BANK' | 'CASH';
+  readonly source?: 'BANK' | 'CASH';
 
   @ApiPropertyOptional({ example: 'firebase-uid-456' })
   @IsOptional()

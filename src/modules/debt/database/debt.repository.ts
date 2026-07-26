@@ -35,24 +35,29 @@ export type VehicleDebtRecord = {
 
 export type DebtModel = {
   id: string;
-  lenderId: string;
-  borrowerId: string;
+  ownerId: string;
+  contactId: string;
+  role: 'LENDER' | 'BORROWER';
   amount: any;
   date: Date;
   type: string;
   createdAt: Date;
   updatedAt: Date;
   repayments?: RepaymentModel[];
-  lender?: UserInfo;
-  borrower?: UserInfo;
+  owner?: { user: UserInfo };
+  contact?: { user: UserInfo };
   manualDebt?: ManualDebtRecord | null;
   vehicleDebt?: VehicleDebtRecord | null;
 };
 
+// Account/Contact don't carry firstName/lastName themselves — those live on
+// the shared User base, reached via Account.user / Contact.user.
 const include = {
   repayments: true,
-  lender: { select: { firstName: true, lastName: true } },
-  borrower: { select: { firstName: true, lastName: true } },
+  owner: { select: { user: { select: { firstName: true, lastName: true } } } },
+  contact: {
+    select: { user: { select: { firstName: true, lastName: true } } },
+  },
   manualDebt: true,
   vehicleDebt: { include: { vehicle: { select: { name: true } } } },
 } as const;
@@ -81,8 +86,11 @@ export class DebtRepository
   }
 
   async findAllByUserId(userId: string): Promise<DebtEntity[]> {
+    // ownerId is always the authenticated account — a contact can never
+    // equal an account's id, so no OR across both sides is needed here
+    // (unlike the old lenderId/borrowerId model where both were plain Users).
     const results = await this.client.debt.findMany({
-      where: { OR: [{ lenderId: userId }, { borrowerId: userId }] },
+      where: { ownerId: userId },
       include,
       orderBy: { date: 'desc' },
     });

@@ -14,7 +14,7 @@ import {
 
 export type VehicleParticipantRecord = {
   vehicleId: string;
-  userId: string;
+  contactId: string;
   profitShare: any; // Prisma Decimal
 };
 
@@ -23,11 +23,13 @@ export type SoldVehicleRecord = {
   salePrice: any; // Prisma Decimal
   soldAt: Date;
   cashierId: string;
-  source: string;
+  bankAmount?: any | null; // Prisma Decimal
+  cashAmount?: any | null; // Prisma Decimal
 };
 
 export type VehicleModel = {
   id: string;
+  ownerId: string;
   name: string;
   purchaseDate: Date;
   purchasePrice: any; // Prisma Decimal
@@ -63,6 +65,7 @@ export class VehicleRepository
         await this.client.vehicle.create({
           data: {
             id: record.id,
+            ownerId: record.ownerId,
             name: record.name,
             purchaseDate: record.purchaseDate,
             purchasePrice: record.purchasePrice,
@@ -70,7 +73,7 @@ export class VehicleRepository
             updatedAt: record.updatedAt,
             participants: {
               create: record.participants.map((p) => ({
-                userId: p.userId,
+                contactId: p.contactId,
                 profitShare: p.profitShare,
               })),
             },
@@ -106,7 +109,8 @@ export class VehicleRepository
                 salePrice: props.soldVehicle.salePrice,
                 soldAt: props.soldVehicle.soldAt,
                 cashierId: props.soldVehicle.cashierId,
-                source: props.soldVehicle.source,
+                bankAmount: props.soldVehicle.bankAmount ?? null,
+                cashAmount: props.soldVehicle.cashAmount ?? null,
               },
             }),
           ]
@@ -123,7 +127,7 @@ export class VehicleRepository
         date: params.date,
         payers: {
           create: params.payers.map((p) => ({
-            userId: p.userId,
+            payerId: p.payerId,
             amount: p.amount,
             source: p.source,
             imputedToId: p.imputedToId ?? null,

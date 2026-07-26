@@ -19,6 +19,7 @@ import {
   VehicleAlreadySoldError,
   VehicleCashierNotParticipantError,
   VehicleNotFoundError,
+  VehicleSaleReimbursementRequiresOwnerError,
 } from '@modules/vehicle/domain/vehicle.errors';
 import { DeclareSaleCommand } from './declare-sale.command';
 import { DeclareSaleRequestDto } from './declare-sale.request.dto';
@@ -45,7 +46,8 @@ export class DeclareSaleHttpController {
       salePrice: body.salePrice,
       soldAt: new Date(body.soldAt),
       cashierId: body.cashierId,
-      source: body.source,
+      bankAmount: body.bankAmount,
+      cashAmount: body.cashAmount,
     });
 
     const result: Result<
@@ -53,6 +55,7 @@ export class DeclareSaleHttpController {
       | VehicleNotFoundError
       | VehicleAlreadySoldError
       | VehicleCashierNotParticipantError
+      | VehicleSaleReimbursementRequiresOwnerError
     > = await this.commandBus.execute(command);
 
     return match(result, {
@@ -62,7 +65,8 @@ export class DeclareSaleHttpController {
           throw new NotFoundException(error.message);
         if (
           error instanceof VehicleAlreadySoldError ||
-          error instanceof VehicleCashierNotParticipantError
+          error instanceof VehicleCashierNotParticipantError ||
+          error instanceof VehicleSaleReimbursementRequiresOwnerError
         )
           throw new UnprocessableEntityException(error.message);
         throw error;

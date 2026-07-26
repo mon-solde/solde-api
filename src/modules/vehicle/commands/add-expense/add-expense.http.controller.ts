@@ -15,6 +15,8 @@ import { IdResponse } from '@libs/api/id.response.dto';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
 import { Public } from '@modules/auth/public.decorator';
 import {
+  ExpenseImputationRequiresOwnerError,
+  ExpenseSourceRequiredForOwnerError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
@@ -47,7 +49,10 @@ export class AddExpenseHttpController {
 
     const result: Result<
       string,
-      VehicleNotFoundError | VehicleAlreadySoldError
+      | VehicleNotFoundError
+      | VehicleAlreadySoldError
+      | ExpenseImputationRequiresOwnerError
+      | ExpenseSourceRequiredForOwnerError
     > = await this.commandBus.execute(command);
 
     return match(result, {
@@ -55,7 +60,11 @@ export class AddExpenseHttpController {
       Err: (error) => {
         if (error instanceof VehicleNotFoundError)
           throw new NotFoundException(error.message);
-        if (error instanceof VehicleAlreadySoldError)
+        if (
+          error instanceof VehicleAlreadySoldError ||
+          error instanceof ExpenseImputationRequiresOwnerError ||
+          error instanceof ExpenseSourceRequiredForOwnerError
+        )
           throw new UnprocessableEntityException(error.message);
         throw error;
       },

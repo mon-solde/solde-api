@@ -1,9 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Min,
 } from 'class-validator';
@@ -23,7 +23,17 @@ export class DeclareSaleRequestDto {
   @IsNotEmpty()
   readonly cashierId: string;
 
-  @ApiProperty({ example: 'BANK', enum: ['BANK', 'CASH'] })
-  @IsIn(['BANK', 'CASH'])
-  readonly source: 'BANK' | 'CASH';
+  // Only meaningful (and required) when cashierId is the account owner —
+  // see declare-sale.service.ts for the rule that enforces this.
+  @ApiPropertyOptional({ example: 8000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  readonly bankAmount?: number;
+
+  @ApiPropertyOptional({ example: 4000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  readonly cashAmount?: number;
 }

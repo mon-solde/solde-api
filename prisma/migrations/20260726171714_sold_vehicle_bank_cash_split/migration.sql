@@ -5,6 +5,6 @@
 
 */
 -- AlterTable
-ALTER TABLE "sold_vehicles" DROP COLUMN "source",
-ADD COLUMN     "bankAmount" DECIMAL(65,30),
-ADD COLUMN     "cashAmount" DECIMAL(65,30);
+ALTER TABLE "sold_vehicles" DROP COLUMN IF EXISTS "source";
+ALTER TABLE "sold_vehicles" ADD COLUMN IF NOT EXISTS "bankAmount" DECIMAL(65,30);
+ALTER TABLE "sold_vehicles" ADD COLUMN IF NOT EXISTS "cashAmount" DECIMAL(65,30);

@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "contacts" ADD COLUMN     "deletedAt" TIMESTAMP(3);
+ALTER TABLE "contacts" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);

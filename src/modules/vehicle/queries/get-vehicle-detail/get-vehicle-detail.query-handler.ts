@@ -143,7 +143,9 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
               },
             },
           },
-          orderBy: { date: 'desc' },
+          // `date` only carries day precision — createdAt breaks ties
+          // between same-day expenses, most recent first, consistently.
+          orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         },
         soldVehicle: true,
         vehicleDebts: {

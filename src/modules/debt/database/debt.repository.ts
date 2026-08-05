@@ -102,7 +102,9 @@ export class DebtRepository
           : {}),
       },
       include,
-      orderBy: { date: 'desc' },
+      // `date` only carries day precision — createdAt breaks ties between
+      // same-day debts, most recent first, consistently.
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     });
     return results.map((r) => this.mapper.toDomain(r as any));
   }

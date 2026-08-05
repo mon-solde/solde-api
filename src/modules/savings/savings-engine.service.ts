@@ -19,6 +19,11 @@ export interface SavingsHistoryItem {
   amount: number;
   label: string;
   date: Date;
+  // Same-day entries (e.g. a loan and its same-day repayment) can't be
+  // ordered by `date` alone, since it only carries day precision — this
+  // breaks the tie with the record's real creation instant, so a repayment
+  // never sorts before the loan it belongs to.
+  createdAt: Date;
   sourceType: SavingsSourceType;
   note?: string;
 }
@@ -44,6 +49,13 @@ const FRENCH_MONTHS = [
   'décembre',
 ];
 
+// Cette page répond à une seule question : combien d'argent qui
+// m'appartient vraiment puis-je dépenser maintenant ? L'argent emprunté
+// (dettes BORROWER) ne compte jamais, même pendant qu'il est sur le
+// compte — son remboursement est exclu aussi, puisque les deux
+// s'annulent et n'ont jamais représenté de la vraie épargne. L'argent
+// prêté (dettes LENDER) compte des deux côtés, parce que cet argent
+// quitte vraiment ma poche et y revient vraiment.
 @Injectable()
 export class SavingsEngine {
   constructor(private readonly prisma: PrismaService) {}
@@ -63,9 +75,7 @@ export class SavingsEngine {
   async getHistory(userId: string): Promise<SavingsHistoryItem[]> {
     const [
       lentDebts,
-      borrowedDebts,
       lenderRepayments,
-      borrowerRepayments,
       budgetWithdrawals,
       manualEvents,
       vehicleExpenses,
@@ -83,22 +93,7 @@ export class SavingsEngine {
         select: {
           id: true,
           date: true,
-          contact: { select: { user: { select: { firstName: true } } } },
-          manualDebt: { select: { bankAmount: true, cashAmount: true } },
-        },
-      }),
-      this.prisma.debt.findMany({
-        where: {
-          ownerId: userId,
-          role: 'BORROWER',
-          type: 'MANUAL',
-          manualDebt: {
-            OR: [{ bankAmount: { gt: 0 } }, { cashAmount: { gt: 0 } }],
-          },
-        },
-        select: {
-          id: true,
-          date: true,
+          createdAt: true,
           contact: { select: { user: { select: { firstName: true } } } },
           manualDebt: { select: { bankAmount: true, cashAmount: true } },
         },
@@ -111,23 +106,7 @@ export class SavingsEngine {
           source: true,
           note: true,
           date: true,
-          debt: {
-            select: {
-              type: true,
-              contact: { select: { user: { select: { firstName: true } } } },
-              vehicleDebt: { select: { vehicle: { select: { name: true } } } },
-            },
-          },
-        },
-      }),
-      this.prisma.repayment.findMany({
-        where: { debt: { ownerId: userId, role: 'BORROWER' } },
-        select: {
-          id: true,
-          amount: true,
-          source: true,
-          note: true,
-          date: true,
+          createdAt: true,
           debt: {
             select: {
               type: true,
@@ -144,6 +123,7 @@ export class SavingsEngine {
           amount: true,
           source: true,
           date: true,
+          createdAt: true,
           budget: { select: { month: true, year: true } },
         },
       }),
@@ -156,6 +136,7 @@ export class SavingsEngine {
           amount: true,
           label: true,
           date: true,
+          createdAt: true,
         },
       }),
       this.prisma.expensePayer.findMany({
@@ -167,6 +148,7 @@ export class SavingsEngine {
             select: {
               label: true,
               date: true,
+              createdAt: true,
               vehicle: { select: { name: true } },
             },
           },
@@ -184,7 +166,12 @@ export class SavingsEngine {
           id: true,
           name: true,
           soldVehicle: {
-            select: { soldAt: true, bankAmount: true, cashAmount: true },
+            select: {
+              soldAt: true,
+              bankAmount: true,
+              cashAmount: true,
+              createdAt: true,
+            },
           },
         },
       }),
@@ -205,6 +192,7 @@ export class SavingsEngine {
           amount: bankAmount,
           label,
           date: debt.date,
+          createdAt: debt.createdAt,
           sourceType: 'DEBT',
         });
       if (cashAmount > 0)
@@ -215,33 +203,7 @@ export class SavingsEngine {
           amount: cashAmount,
           label,
           date: debt.date,
-          sourceType: 'DEBT',
-        });
-    }
-
-    for (const debt of borrowedDebts) {
-      const name = debt.contact.user.firstName;
-      const label = `Emprunt de ${name}`;
-      const bankAmount = Number(debt.manualDebt?.bankAmount ?? 0);
-      const cashAmount = Number(debt.manualDebt?.cashAmount ?? 0);
-      if (bankAmount > 0)
-        items.push({
-          id: `${debt.id}-borrowed-bank`,
-          kind: 'ADDITION',
-          source: 'BANK',
-          amount: bankAmount,
-          label,
-          date: debt.date,
-          sourceType: 'DEBT',
-        });
-      if (cashAmount > 0)
-        items.push({
-          id: `${debt.id}-borrowed-cash`,
-          kind: 'ADDITION',
-          source: 'CASH',
-          amount: cashAmount,
-          label,
-          date: debt.date,
+          createdAt: debt.createdAt,
           sourceType: 'DEBT',
         });
     }
@@ -260,24 +222,7 @@ export class SavingsEngine {
         label,
         note: r.note ?? undefined,
         date: r.date,
-        sourceType: 'REPAYMENT',
-      });
-    }
-
-    for (const r of borrowerRepayments) {
-      const name = r.debt.contact.user.firstName;
-      const vehicleName = r.debt.vehicleDebt?.vehicle.name;
-      const label = vehicleName
-        ? `Reversement à ${name} — ${vehicleName}`
-        : `Remboursement à ${name}`;
-      items.push({
-        id: r.id,
-        kind: 'WITHDRAWAL',
-        source: r.source as SavingsSource,
-        amount: Number(r.amount),
-        label,
-        note: r.note ?? undefined,
-        date: r.date,
+        createdAt: r.createdAt,
         sourceType: 'REPAYMENT',
       });
     }
@@ -292,6 +237,7 @@ export class SavingsEngine {
           w.budget.year
         }`,
         date: w.date,
+        createdAt: w.createdAt,
         sourceType: 'BUDGET',
       });
     }
@@ -304,6 +250,7 @@ export class SavingsEngine {
         amount: Number(m.amount),
         label: m.label,
         date: m.date,
+        createdAt: m.createdAt,
         sourceType: 'MANUAL',
       });
     }
@@ -318,6 +265,7 @@ export class SavingsEngine {
         amount: Number(payer.amount),
         label: `${payer.expense.label} — ${payer.expense.vehicle.name}`,
         date: payer.expense.date,
+        createdAt: payer.expense.createdAt,
         sourceType: 'VEHICLE_SALE',
       });
     }
@@ -337,6 +285,7 @@ export class SavingsEngine {
           amount: bankAmount,
           label,
           date: vehicle.soldVehicle.soldAt,
+          createdAt: vehicle.soldVehicle.createdAt,
           sourceType: 'VEHICLE_SALE',
         });
       if (cashAmount > 0)
@@ -347,10 +296,19 @@ export class SavingsEngine {
           amount: cashAmount,
           label,
           date: vehicle.soldVehicle.soldAt,
+          createdAt: vehicle.soldVehicle.createdAt,
           sourceType: 'VEHICLE_SALE',
         });
     }
 
-    return items.sort((a, b) => b.date.getTime() - a.date.getTime());
+    // Most recent first throughout, consistently — `date` only carries day
+    // precision, so same-day entries fall back to `createdAt` (also most
+    // recent first) instead of leaving the tie to whatever order the
+    // queries above happened to run in.
+    return items.sort(
+      (a, b) =>
+        b.date.getTime() - a.date.getTime() ||
+        b.createdAt.getTime() - a.createdAt.getTime(),
+    );
   }
 }

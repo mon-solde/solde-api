@@ -22,7 +22,10 @@ export class DeleteRepaymentService implements ICommandHandler {
   async execute(
     command: DeleteRepaymentCommand,
   ): Promise<
-    Result<void, DebtNotFoundError | DebtAccessDeniedError | RepaymentNotFoundError>
+    Result<
+      void,
+      DebtNotFoundError | DebtAccessDeniedError | RepaymentNotFoundError
+    >
   > {
     const found = await this.debtRepo.findOneById(command.debtId);
     if (found.isNone()) return Err(new DebtNotFoundError());

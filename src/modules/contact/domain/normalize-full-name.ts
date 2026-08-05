@@ -15,7 +15,10 @@ function removeAccents(text: string): string {
   return result;
 }
 
-export function normalizeFullName(firstName: string, lastName?: string): string {
+export function normalizeFullName(
+  firstName: string,
+  lastName?: string,
+): string {
   const fullName = `${firstName} ${lastName ?? ''}`;
   return removeAccents(fullName.trim().toLowerCase()).replace(
     EXTRA_SPACES,

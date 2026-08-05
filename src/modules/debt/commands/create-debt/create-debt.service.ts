@@ -53,8 +53,7 @@ export class CreateDebtService implements ICommandHandler {
     // command.role tells us which side of lenderId/borrowerId is the
     // authenticated account (ownerId) vs. the selected contact (contactId) —
     // see create-lent-debt / create-borrowed-debt controllers.
-    const ownerId =
-      command.role === 'LENT' ? props.lenderId : props.borrowerId;
+    const ownerId = command.role === 'LENT' ? props.lenderId : props.borrowerId;
     const contactId =
       command.role === 'LENT' ? props.borrowerId : props.lenderId;
     const role = command.role === 'LENT' ? 'LENDER' : 'BORROWER';

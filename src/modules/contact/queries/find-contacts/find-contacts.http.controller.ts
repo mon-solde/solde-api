@@ -23,8 +23,9 @@ export class FindContactsHttpController {
   async findContacts(
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ContactResponseDto[]> {
-    const result: Result<ContactEntity[], never> =
-      await this.queryBus.execute(new FindContactsQuery({ ownerId: user.id }));
+    const result: Result<ContactEntity[], never> = await this.queryBus.execute(
+      new FindContactsQuery({ ownerId: user.id }),
+    );
 
     return result.unwrap().map((contact) => this.mapper.toResponse(contact));
   }

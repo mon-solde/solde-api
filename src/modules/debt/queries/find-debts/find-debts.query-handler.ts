@@ -7,6 +7,10 @@ import { DebtEntity } from '../../domain/debt.entity';
 
 export class FindDebtsQuery {
   readonly userId: string;
+  readonly contactId?: string;
+  readonly role?: 'LENDER' | 'BORROWER';
+  readonly status?: 'REPAID' | 'ONGOING';
+  readonly vehicleId?: string;
 
   constructor(props: FindDebtsQuery) {
     Object.assign(this, props);
@@ -21,7 +25,21 @@ export class FindDebtsQueryHandler implements IQueryHandler {
   ) {}
 
   async execute(query: FindDebtsQuery): Promise<Result<DebtEntity[], never>> {
-    const debts = await this.debtRepo.findAllByUserId(query.userId);
-    return Ok(debts);
+    const debts = await this.debtRepo.findAllByUserId(query.userId, {
+      contactId: query.contactId,
+      role: query.role,
+      vehicleId: query.vehicleId,
+    });
+
+    // isRepaid is derived from repayments, not a stored column — filtering
+    // it happens here rather than in Prisma's `where`.
+    const filtered =
+      query.status === undefined
+        ? debts
+        : debts.filter((debt) =>
+            query.status === 'REPAID' ? debt.isRepaid : !debt.isRepaid,
+          );
+
+    return Ok(filtered);
   }
 }

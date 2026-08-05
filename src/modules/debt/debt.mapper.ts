@@ -33,7 +33,8 @@ export class DebtMapper
     const borrowerName = isLender
       ? contactInfo &&
         `${contactInfo.firstName} ${contactInfo.lastName ?? ''}`.trim()
-      : ownerInfo && `${ownerInfo.firstName} ${ownerInfo.lastName ?? ''}`.trim();
+      : ownerInfo &&
+        `${ownerInfo.firstName} ${ownerInfo.lastName ?? ''}`.trim();
 
     const isVehicle = record.type === DebtType.VEHICLE;
 

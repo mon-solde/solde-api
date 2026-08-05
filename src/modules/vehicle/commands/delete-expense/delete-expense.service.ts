@@ -35,7 +35,9 @@ export class DeleteExpenseService implements ICommandHandler {
     const vehicle = found.unwrap();
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
 
-    const expenseDebts = await this.vehicleRepo.findExpenseDebts(command.expenseId);
+    const expenseDebts = await this.vehicleRepo.findExpenseDebts(
+      command.expenseId,
+    );
 
     if (expenseDebts.some((d) => d.hasRepayments)) {
       return Err(new ExpenseHasRepaymentsError());

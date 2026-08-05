@@ -28,9 +28,7 @@ export class UpdateContactService implements ICommandHandler {
 
   async execute(
     command: UpdateContactCommand,
-  ): Promise<
-    Result<boolean, ContactNotFoundError | ContactAccessDeniedError>
-  > {
+  ): Promise<Result<boolean, ContactNotFoundError | ContactAccessDeniedError>> {
     const found = await this.contactRepo.findOneById(command.contactId);
     if (found.isNone()) return Err(new ContactNotFoundError());
 

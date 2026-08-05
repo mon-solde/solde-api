@@ -52,8 +52,7 @@ export class AddExpenseService implements ICommandHandler {
     // A Debt always has the vehicle owner (Account) on one side and a
     // contact on the other — a debt between two contacts can't be stored.
     const invalidImputation = delegatedPayers.find(
-      (p) =>
-        p.payerId !== vehicle.ownerId && p.imputedToId !== vehicle.ownerId,
+      (p) => p.payerId !== vehicle.ownerId && p.imputedToId !== vehicle.ownerId,
     );
     if (invalidImputation) {
       return Err(new ExpenseImputationRequiresOwnerError());

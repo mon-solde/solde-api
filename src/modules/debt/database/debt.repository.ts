@@ -5,7 +5,7 @@ import { PrismaRepositoryBase } from '@libs/db/prisma-repository.base';
 import { Some, None, Option } from 'oxide.ts';
 import { DebtEntity } from '../domain/debt.entity';
 import { DebtMapper } from '../debt.mapper';
-import { DebtRepositoryPort } from './debt.repository.port';
+import { DebtRepositoryPort, DebtFilters } from './debt.repository.port';
 
 export type RepaymentModel = {
   id: string;
@@ -85,12 +85,22 @@ export class DebtRepository
     return result ? Some(this.mapper.toDomain(result as any)) : None;
   }
 
-  async findAllByUserId(userId: string): Promise<DebtEntity[]> {
+  async findAllByUserId(
+    userId: string,
+    filters?: DebtFilters,
+  ): Promise<DebtEntity[]> {
     // ownerId is always the authenticated account — a contact can never
     // equal an account's id, so no OR across both sides is needed here
     // (unlike the old lenderId/borrowerId model where both were plain Users).
     const results = await this.client.debt.findMany({
-      where: { ownerId: userId },
+      where: {
+        ownerId: userId,
+        ...(filters?.contactId ? { contactId: filters.contactId } : {}),
+        ...(filters?.role ? { role: filters.role } : {}),
+        ...(filters?.vehicleId
+          ? { vehicleDebt: { vehicleId: filters.vehicleId } }
+          : {}),
+      },
       include,
       orderBy: { date: 'desc' },
     });

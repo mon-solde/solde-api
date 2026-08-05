@@ -43,9 +43,8 @@ export class CreateContactService implements ICommandHandler {
 
   private async findSameNamedContact(command: CreateContactCommand) {
     const incomingName = normalizeFullName(command.firstName, command.lastName);
-    const existingContacts = await this.contactRepo.findAllByOwnerIdIncludingHidden(
-      command.ownerId,
-    );
+    const existingContacts =
+      await this.contactRepo.findAllByOwnerIdIncludingHidden(command.ownerId);
     return existingContacts.find(
       (contact) =>
         normalizeFullName(contact.firstName, contact.lastName ?? undefined) ===

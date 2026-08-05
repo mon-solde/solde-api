@@ -31,7 +31,10 @@ function computeInvestedByResponsibleParty(
   for (const payment of payments) {
     const responsibleId = payment.imputedToId ?? payment.payerId;
     const amount = Number(payment.amount);
-    investedByUser.set(responsibleId, (investedByUser.get(responsibleId) ?? 0) + amount);
+    investedByUser.set(
+      responsibleId,
+      (investedByUser.get(responsibleId) ?? 0) + amount,
+    );
   }
   return investedByUser;
 }
@@ -69,7 +72,10 @@ export class DeclareSaleService implements ICommandHandler {
     const bankAmount = cashierIsOwner ? command.bankAmount ?? 0 : 0;
     const cashAmount = cashierIsOwner ? command.cashAmount ?? 0 : 0;
     const epsilon = 0.001;
-    if (cashierIsOwner && Math.abs(bankAmount + cashAmount - command.salePrice) > epsilon) {
+    if (
+      cashierIsOwner &&
+      Math.abs(bankAmount + cashAmount - command.salePrice) > epsilon
+    ) {
       throw new BadRequestException(
         `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au prix de vente (${command.salePrice})`,
       );

@@ -22,10 +22,7 @@ export class ContactDuplicateNameError extends ExceptionBase {
   static readonly message = 'A contact with this name already exists';
   readonly code = 'CONTACT.DUPLICATE_NAME';
 
-  constructor(
-    readonly existingContactId: string,
-    readonly hidden: boolean,
-  ) {
+  constructor(readonly existingContactId: string, readonly hidden: boolean) {
     super(ContactDuplicateNameError.message);
   }
 }

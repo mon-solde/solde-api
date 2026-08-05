@@ -111,7 +111,13 @@ export class SavingsEngine {
             select: {
               type: true,
               contact: { select: { user: { select: { firstName: true } } } },
-              vehicleDebt: { select: { vehicle: { select: { name: true } } } },
+              soldVehicleDebt: {
+                select: {
+                  soldVehicle: {
+                    select: { vehicle: { select: { name: true } } },
+                  },
+                },
+              },
             },
           },
         },
@@ -210,7 +216,7 @@ export class SavingsEngine {
 
     for (const r of lenderRepayments) {
       const name = r.debt.contact.user.firstName;
-      const vehicleName = r.debt.vehicleDebt?.vehicle.name;
+      const vehicleName = r.debt.soldVehicleDebt?.soldVehicle.vehicle.name;
       const label = vehicleName
         ? `Reversement de ${name} — ${vehicleName}`
         : `Remboursement de ${name}`;

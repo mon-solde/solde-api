@@ -1,6 +1,6 @@
 export enum DebtType {
   MANUAL = 'MANUAL',
-  VEHICLE = 'VEHICLE',
+  SOLD_VEHICLE = 'SOLD_VEHICLE',
 }
 
 export interface RepaymentProps {
@@ -23,7 +23,7 @@ export interface DebtProps {
   description?: string;
   bankAmount?: number;
   cashAmount?: number;
-  // Vehicle debt only
+  // Sold vehicle debt only
   vehicleId?: string;
   vehicleName?: string;
   repayments: RepaymentProps[];
@@ -39,7 +39,7 @@ export interface CreateManualDebtProps {
   cashAmount?: number;
 }
 
-export interface CreateVehicleDebtProps {
+export interface CreateSoldVehicleDebtProps {
   lenderId: string;
   borrowerId: string;
   amount: number;

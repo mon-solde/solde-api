@@ -101,7 +101,6 @@ model Vehicle {
   participants VehicleParticipant[]
   expenses     Expense[]
   soldVehicle  SoldVehicle?
-  vehicleDebts VehicleDebt[]
 
   @@map("vehicles")
 }
@@ -124,7 +123,10 @@ model SoldVehicle {
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   /// User (not Account/Contact directly): either the account owner or one of
   /// their contacts can be the one who physically cashed the sale.
-  cashier User    @relation(fields: [cashierId], references: [id])
+  cashier          User              @relation(fields: [cashierId], references: [id])
+  /// The debts a sale settles between beneficiaries — deleting the sale
+  /// deletes them too, since they only exist to represent this sale's payout.
+  soldVehicleDebts SoldVehicleDebt[]
 
   @@map("sold_vehicles")
 }
@@ -182,7 +184,7 @@ model ExpensePayer {
 
 enum DebtType {
   MANUAL
-  VEHICLE
+  SOLD_VEHICLE
   EXPENSE
 }
 
@@ -207,10 +209,10 @@ model Debt {
   /// contact that still has open debts.
   contact Contact @relation(fields: [contactId], references: [userId])
 
-  repayments  Repayment[]
-  manualDebt  ManualDebt?
-  vehicleDebt VehicleDebt?
-  expenseDebt ExpenseDebt?
+  repayments      Repayment[]
+  manualDebt      ManualDebt?
+  soldVehicleDebt SoldVehicleDebt?
+  expenseDebt     ExpenseDebt?
 
   @@map("debts")
 }
@@ -227,14 +229,16 @@ model ManualDebt {
   @@map("manual_debts")
 }
 
-model VehicleDebt {
-  debtId    String @id
-  vehicleId String
+model SoldVehicleDebt {
+  debtId        String @id
+  soldVehicleId String
 
-  debt    Debt    @relation(fields: [debtId], references: [id], onDelete: Cascade)
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  /// Deleting the sale deletes this settlement debt with it — it has no
+  /// meaning independent of the sale that generated it.
+  soldVehicle SoldVehicle @relation(fields: [soldVehicleId], references: [id], onDelete: Cascade)
 
-  @@map("vehicle_debts")
+  @@map("sold_vehicle_debts")
 }
 
 model ExpenseDebt {

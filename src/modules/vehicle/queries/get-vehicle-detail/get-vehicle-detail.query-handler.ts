@@ -1,6 +1,10 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Ok, Result } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
+import {
+  buildProfitShareBeneficiaries,
+  computeProfitShares,
+} from '@modules/vehicle/domain/profit-sharing';
 
 export class GetVehicleDetailQuery {
   readonly vehicleId: string;
@@ -102,6 +106,7 @@ function buildOwnerSummary(
   vehicle: { ownerId: string; participants: { profitShare: unknown }[] },
   investedByUser: Map<string, number>,
   profit: number | null,
+  profitShareById: Map<string, number>,
 ): OwnerSummary {
   const participantsShare = vehicle.participants.reduce(
     (sum, p) => sum + Number(p.profitShare),
@@ -109,7 +114,8 @@ function buildOwnerSummary(
   );
   const profitShare = 100 - participantsShare;
   const totalInvested = investedByUser.get(vehicle.ownerId) ?? 0;
-  const profitFromSale = profit !== null ? (profit * profitShare) / 100 : null;
+  const profitFromSale =
+    profit !== null ? profitShareById.get(vehicle.ownerId) ?? 0 : null;
   const amountToReceive =
     profitFromSale !== null ? totalInvested + profitFromSale : null;
   return { profitShare, totalInvested, profitFromSale, amountToReceive };
@@ -147,22 +153,25 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
           // between same-day expenses, most recent first, consistently.
           orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         },
-        soldVehicle: true,
-        vehicleDebts: {
+        soldVehicle: {
           include: {
-            debt: {
+            soldVehicleDebts: {
               include: {
-                owner: {
-                  select: {
-                    user: { select: { firstName: true, lastName: true } },
+                debt: {
+                  include: {
+                    owner: {
+                      select: {
+                        user: { select: { firstName: true, lastName: true } },
+                      },
+                    },
+                    contact: {
+                      select: {
+                        user: { select: { firstName: true, lastName: true } },
+                      },
+                    },
+                    repayments: true,
                   },
                 },
-                contact: {
-                  select: {
-                    user: { select: { firstName: true, lastName: true } },
-                  },
-                },
-                repayments: true,
               },
             },
           },
@@ -215,12 +224,24 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       cashierId = vehicle.soldVehicle.cashierId;
     }
 
+    const profitShareBeneficiaries = buildProfitShareBeneficiaries(
+      vehicle.ownerId,
+      vehicle.participants.map((p) => ({
+        id: p.contactId,
+        profitShare: Number(p.profitShare),
+      })),
+    );
+    const profitShareById =
+      profit !== null
+        ? computeProfitShares(profit, profitShareBeneficiaries)
+        : new Map<string, number>();
+
     const participantSummaries: ParticipantSummary[] = vehicle.participants.map(
       (p) => {
         const totalInvested = investedByUser.get(p.contactId) ?? 0;
         const profitShare = Number(p.profitShare);
         const profitFromSale =
-          profit !== null ? (profit * profitShare) / 100 : null;
+          profit !== null ? profitShareById.get(p.contactId) ?? 0 : null;
         const amountToReceive =
           profitFromSale !== null ? totalInvested + profitFromSale : null;
         return {
@@ -235,7 +256,8 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       },
     );
 
-    const reversements: ReversementDetail[] = vehicle.vehicleDebts.map((vd) => {
+    const soldVehicleDebts = vehicle.soldVehicle?.soldVehicleDebts ?? [];
+    const reversements: ReversementDetail[] = soldVehicleDebts.map((vd) => {
       const amountDue = Number(vd.debt.amount);
       const amountPaid = vd.debt.repayments.reduce(
         (s, r) => s + Number(r.amount),
@@ -293,7 +315,12 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         totalExpenses,
         profit,
         cashierId,
-        owner: buildOwnerSummary(vehicle, investedByUser, profit),
+        owner: buildOwnerSummary(
+          vehicle,
+          investedByUser,
+          profit,
+          profitShareById,
+        ),
         participants: participantSummaries,
       },
       reversements,

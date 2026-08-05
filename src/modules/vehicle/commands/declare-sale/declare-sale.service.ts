@@ -12,6 +12,10 @@ import {
   VehicleNotFoundError,
   VehicleSaleReimbursementRequiresOwnerError,
 } from '@modules/vehicle/domain/vehicle.errors';
+import {
+  buildProfitShareBeneficiaries,
+  computeProfitShares,
+} from '@modules/vehicle/domain/profit-sharing';
 import { DeclareSaleCommand } from './declare-sale.command';
 
 type ExpensePaymentRecord = {
@@ -84,20 +88,13 @@ export class DeclareSaleService implements ICommandHandler {
     // Beneficiaries of the sale: every contact-participant, plus the owner's
     // own implicit share (100 minus the sum of contact shares — never a row
     // in `participants` themselves).
-    const contactShareSum = vehicle.participants.reduce(
-      (sum, p) => sum + p.profitShare,
-      0,
-    );
-    const ownerShare = 100 - contactShareSum;
-    const beneficiaries: Array<{ id: string; profitShare: number }> = [
-      ...vehicle.participants.map((p) => ({
+    const beneficiaries = buildProfitShareBeneficiaries(
+      vehicle.ownerId,
+      vehicle.participants.map((p) => ({
         id: p.contactId,
         profitShare: p.profitShare,
       })),
-      ...(ownerShare > 0.001
-        ? [{ id: vehicle.ownerId, profitShare: ownerShare }]
-        : []),
-    ];
+    );
     const nonCashierBeneficiaries = beneficiaries.filter(
       (b) => b.id !== command.cashierId,
     );
@@ -115,8 +112,9 @@ export class DeclareSaleService implements ICommandHandler {
       }
     }
 
+    const soldVehicleId = randomUUID();
     vehicle.sell({
-      id: randomUUID(),
+      id: soldVehicleId,
       salePrice: command.salePrice,
       soldAt: command.soldAt,
       cashierId: command.cashierId,
@@ -137,29 +135,37 @@ export class DeclareSaleService implements ICommandHandler {
       );
       const profit = command.salePrice - totalExpensesAmount;
       const investedByUser = computeInvestedByResponsibleParty(payments);
+      const profitShareById = computeProfitShares(profit, beneficiaries);
+
+      // When the cashier holds the money, they naturally owe every other
+      // beneficiary their due (BORROWER); when a contact cashier holds it,
+      // the owner is naturally owed theirs (LENDER). A beneficiary whose net
+      // position is negative (their share of a deficit exceeds what they
+      // invested) owes money the other way instead of the amountToReceive
+      // sign — this flips role/amount rather than being skipped, so a loss
+      // still lands on whoever caused it, not just on the cashier.
+      const naturalRole = cashierIsOwner ? 'BORROWER' : 'LENDER';
+      const oppositeRole = naturalRole === 'BORROWER' ? 'LENDER' : 'BORROWER';
 
       for (const beneficiary of nonCashierBeneficiaries) {
         const totalInvested = investedByUser.get(beneficiary.id) ?? 0;
-        const profitShareAmount = (profit * beneficiary.profitShare) / 100;
+        const profitShareAmount = profitShareById.get(beneficiary.id) ?? 0;
         const amountToReceive = totalInvested + profitShareAmount;
 
-        if (amountToReceive <= 0) continue;
+        if (Math.abs(amountToReceive) <= epsilon) continue;
 
         const debtId = randomUUID();
-        // cashierIsOwner => beneficiary is always a contact owed by the
-        // owner-cashier (owner borrows). Otherwise beneficiary is always the
-        // owner, owed by the contact-cashier (owner lends).
         await this.prisma.debt.create({
           data: {
             id: debtId,
             ownerId: vehicle.ownerId,
             contactId: cashierIsOwner ? beneficiary.id : command.cashierId,
-            role: cashierIsOwner ? 'BORROWER' : 'LENDER',
-            amount: amountToReceive,
+            role: amountToReceive >= 0 ? naturalRole : oppositeRole,
+            amount: Math.abs(amountToReceive),
             date: command.soldAt,
-            type: 'VEHICLE',
-            vehicleDebt: {
-              create: { vehicleId: command.vehicleId },
+            type: 'SOLD_VEHICLE',
+            soldVehicleDebt: {
+              create: { soldVehicleId },
             },
           },
         });

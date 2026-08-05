@@ -2,7 +2,7 @@ import { AggregateRoot, AggregateID } from '@libs/ddd';
 import { randomUUID } from 'crypto';
 import {
   CreateManualDebtProps,
-  CreateVehicleDebtProps,
+  CreateSoldVehicleDebtProps,
   DebtProps,
   DebtType,
   RepaymentProps,
@@ -21,11 +21,11 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
     return new DebtEntity({ id, props });
   }
 
-  static createVehicle(create: CreateVehicleDebtProps): DebtEntity {
+  static createSoldVehicle(create: CreateSoldVehicleDebtProps): DebtEntity {
     const id = randomUUID();
     const props: DebtProps = {
       ...create,
-      type: DebtType.VEHICLE,
+      type: DebtType.SOLD_VEHICLE,
       repayments: [],
     };
     return new DebtEntity({ id, props });

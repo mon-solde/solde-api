@@ -27,10 +27,10 @@ export type ManualDebtRecord = {
   cashAmount: any | null;
 };
 
-export type VehicleDebtRecord = {
+export type SoldVehicleDebtRecord = {
   debtId: string;
-  vehicleId: string;
-  vehicle?: { name: string } | null;
+  soldVehicleId: string;
+  soldVehicle: { vehicleId: string; vehicle?: { name: string } | null };
 };
 
 export type DebtModel = {
@@ -47,7 +47,7 @@ export type DebtModel = {
   owner?: { user: UserInfo };
   contact?: { user: UserInfo };
   manualDebt?: ManualDebtRecord | null;
-  vehicleDebt?: VehicleDebtRecord | null;
+  soldVehicleDebt?: SoldVehicleDebtRecord | null;
 };
 
 // Account/Contact don't carry firstName/lastName themselves — those live on
@@ -59,7 +59,13 @@ const include = {
     select: { user: { select: { firstName: true, lastName: true } } },
   },
   manualDebt: true,
-  vehicleDebt: { include: { vehicle: { select: { name: true } } } },
+  soldVehicleDebt: {
+    include: {
+      soldVehicle: {
+        select: { vehicleId: true, vehicle: { select: { name: true } } },
+      },
+    },
+  },
 } as const;
 
 @Injectable()
@@ -98,7 +104,11 @@ export class DebtRepository
         ...(filters?.contactId ? { contactId: filters.contactId } : {}),
         ...(filters?.role ? { role: filters.role } : {}),
         ...(filters?.vehicleId
-          ? { vehicleDebt: { vehicleId: filters.vehicleId } }
+          ? {
+              soldVehicleDebt: {
+                soldVehicle: { vehicleId: filters.vehicleId },
+              },
+            }
           : {}),
       },
       include,

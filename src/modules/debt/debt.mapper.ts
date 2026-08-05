@@ -36,9 +36,9 @@ export class DebtMapper
       : ownerInfo &&
         `${ownerInfo.firstName} ${ownerInfo.lastName ?? ''}`.trim();
 
-    const isVehicle = record.type === DebtType.VEHICLE;
+    const isSoldVehicle = record.type === DebtType.SOLD_VEHICLE;
 
-    if (isVehicle) {
+    if (isSoldVehicle) {
       return new DebtEntity({
         id: record.id,
         createdAt: new Date(record.createdAt),
@@ -50,9 +50,10 @@ export class DebtMapper
           borrowerName: borrowerName || undefined,
           amount: Number(record.amount),
           date: new Date(record.date),
-          type: DebtType.VEHICLE,
-          vehicleId: record.vehicleDebt?.vehicleId,
-          vehicleName: record.vehicleDebt?.vehicle?.name ?? undefined,
+          type: DebtType.SOLD_VEHICLE,
+          vehicleId: record.soldVehicleDebt?.soldVehicle.vehicleId,
+          vehicleName:
+            record.soldVehicleDebt?.soldVehicle.vehicle?.name ?? undefined,
           repayments: (record.repayments ?? []).map((r) => ({
             id: r.id,
             amount: Number(r.amount),

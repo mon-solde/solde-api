@@ -4,6 +4,7 @@ import {
   buildProfitShareBeneficiaries,
   computeInvestedByResponsibleParty,
   computeProfitShares,
+  sumAmounts,
 } from '@modules/vehicle/domain/profit-sharing';
 import {
   SavingsMovementKind,
@@ -305,10 +306,7 @@ export class SavingsEngine {
       // theirs to add to savings, computed with the exact same rule used for
       // that settlement.
       const payments = vehicle.expenses.flatMap((e) => e.payers);
-      const totalExpensesAmount = payments.reduce(
-        (sum, p) => sum + Number(p.amount),
-        0,
-      );
+      const totalExpensesAmount = sumAmounts(payments);
       const profit = salePrice - totalExpensesAmount;
       const investedByUser = computeInvestedByResponsibleParty(payments);
       const beneficiaries = buildProfitShareBeneficiaries(

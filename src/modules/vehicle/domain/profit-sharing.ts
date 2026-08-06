@@ -9,6 +9,24 @@ export interface ExpensePaymentRecord {
   amount: unknown; // Prisma Decimal
 }
 
+// Summing many small decimal amounts in floating point can land on a
+// different bit-level result depending on iteration order — Prisma doesn't
+// guarantee row order without an explicit orderBy, so the exact same set of
+// payments can sum to a value a fraction of a cent apart between two call
+// sites. That's invisible almost always, except when the true result sits
+// exactly on a rounding boundary (e.g. X.XX5), where it flips the displayed
+// cent one way in one place and the other way elsewhere. Converting to
+// integer cents first avoids the whole class of bug: integer addition is
+// exact and order-independent.
+function toCents(amount: unknown): number {
+  return Math.round(Number(amount) * 100);
+}
+
+export function sumAmounts(payments: { amount: unknown }[]): number {
+  const totalCents = payments.reduce((sum, p) => sum + toCents(p.amount), 0);
+  return totalCents / 100;
+}
+
 // Money someone paid but delegated to someone else isn't really their own
 // investment — it's the delegate's, who already owes it back separately
 // (see add-expense.service.ts). Counting it here too would pay the payer
@@ -16,16 +34,17 @@ export interface ExpensePaymentRecord {
 export function computeInvestedByResponsibleParty(
   payments: ExpensePaymentRecord[],
 ): Map<string, number> {
-  const investedByUser = new Map<string, number>();
+  const investedCentsByUser = new Map<string, number>();
   for (const payment of payments) {
     const responsibleId = payment.imputedToId ?? payment.payerId;
-    const amount = Number(payment.amount);
-    investedByUser.set(
+    investedCentsByUser.set(
       responsibleId,
-      (investedByUser.get(responsibleId) ?? 0) + amount,
+      (investedCentsByUser.get(responsibleId) ?? 0) + toCents(payment.amount),
     );
   }
-  return investedByUser;
+  return new Map(
+    [...investedCentsByUser].map(([id, cents]) => [id, cents / 100]),
+  );
 }
 
 // The owner is never a stored VehicleParticipant row — their share is
@@ -35,13 +54,19 @@ export function buildProfitShareBeneficiaries(
   ownerId: string,
   participants: ProfitShareBeneficiary[],
 ): ProfitShareBeneficiary[] {
-  const participantsShare = participants.reduce(
+  // Sorted so the same beneficiary always absorbs a deficit's rounding
+  // remainder (see computeProfitShares) regardless of the order Prisma
+  // happens to return participant rows in.
+  const sortedParticipants = [...participants].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
+  const participantsShare = sortedParticipants.reduce(
     (sum, p) => sum + p.profitShare,
     0,
   );
   const ownerShare = 100 - participantsShare;
   return [
-    ...participants,
+    ...sortedParticipants,
     ...(ownerShare > 0.001 ? [{ id: ownerId, profitShare: ownerShare }] : []),
   ];
 }

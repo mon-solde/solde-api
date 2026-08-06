@@ -3,7 +3,9 @@ import { Ok, Result } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
 import {
   buildProfitShareBeneficiaries,
+  computeInvestedByResponsibleParty,
   computeProfitShares,
+  sumAmounts,
 } from '@modules/vehicle/domain/profit-sharing';
 
 export class GetVehicleDetailQuery {
@@ -181,38 +183,32 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
 
     if (!vehicle) return Ok(null);
 
-    const expenses: ExpenseDetail[] = vehicle.expenses.map((e) => {
-      const totalAmount = e.payers.reduce((s, p) => s + Number(p.amount), 0);
-      return {
-        id: e.id,
-        label: e.label,
-        date: e.date,
-        totalAmount,
-        payers: e.payers.map((p) => ({
-          payerId: p.payerId,
-          firstName: p.payer.firstName,
-          lastName: p.payer.lastName,
-          amount: Number(p.amount),
-          imputedToId: p.imputedToId ?? null,
-          imputedToFirstName: p.imputedTo?.firstName ?? null,
-          imputedToLastName: p.imputedTo?.lastName ?? null,
-        })),
-      };
-    });
+    const expenses: ExpenseDetail[] = vehicle.expenses.map((e) => ({
+      id: e.id,
+      label: e.label,
+      date: e.date,
+      totalAmount: sumAmounts(e.payers),
+      payers: e.payers.map((p) => ({
+        payerId: p.payerId,
+        firstName: p.payer.firstName,
+        lastName: p.payer.lastName,
+        amount: Number(p.amount),
+        imputedToId: p.imputedToId ?? null,
+        imputedToFirstName: p.imputedTo?.firstName ?? null,
+        imputedToLastName: p.imputedTo?.lastName ?? null,
+      })),
+    }));
 
-    const totalExpenses = expenses.reduce((s, e) => s + e.totalAmount, 0);
+    // Summed from the flat list of payments, not from the per-expense
+    // totals above — summing already-rounded per-expense totals would
+    // reintroduce the same order-dependent floating point risk sumAmounts
+    // exists to avoid.
+    const totalExpenses = sumAmounts(vehicle.expenses.flatMap((e) => e.payers));
     const purchasePrice = Number(vehicle.purchasePrice);
 
-    const investedByUser = new Map<string, number>();
-    for (const expense of expenses) {
-      for (const payer of expense.payers) {
-        const responsibleId = payer.imputedToId ?? payer.payerId;
-        investedByUser.set(
-          responsibleId,
-          (investedByUser.get(responsibleId) ?? 0) + payer.amount,
-        );
-      }
-    }
+    const investedByUser = computeInvestedByResponsibleParty(
+      vehicle.expenses.flatMap((e) => e.payers),
+    );
 
     let profit: number | null = null;
     let cashierId: string | null = null;

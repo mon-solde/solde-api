@@ -16,6 +16,7 @@ import {
   buildProfitShareBeneficiaries,
   computeInvestedByResponsibleParty,
   computeProfitShares,
+  sumAmounts,
 } from '@modules/vehicle/domain/profit-sharing';
 import { DeclareSaleCommand } from './declare-sale.command';
 
@@ -105,10 +106,7 @@ export class DeclareSaleService implements ICommandHandler {
         where: { expense: { vehicleId: command.vehicleId } },
         select: { payerId: true, imputedToId: true, amount: true },
       });
-      const totalExpensesAmount = payments.reduce(
-        (sum, p) => sum + Number(p.amount),
-        0,
-      );
+      const totalExpensesAmount = sumAmounts(payments);
       const profit = command.salePrice - totalExpensesAmount;
       const investedByUser = computeInvestedByResponsibleParty(payments);
       const profitShareById = computeProfitShares(profit, beneficiaries);

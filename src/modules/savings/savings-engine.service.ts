@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@libs/db/prisma.service';
 import {
+  buildProfitShareBeneficiaries,
+  computeInvestedByResponsibleParty,
+  computeProfitShares,
+} from '@modules/vehicle/domain/profit-sharing';
+import {
   SavingsMovementKind,
   SavingsSource,
 } from './domain/savings-event.types';
@@ -174,9 +179,18 @@ export class SavingsEngine {
           soldVehicle: {
             select: {
               soldAt: true,
+              salePrice: true,
               bankAmount: true,
               cashAmount: true,
               createdAt: true,
+            },
+          },
+          participants: { select: { contactId: true, profitShare: true } },
+          expenses: {
+            select: {
+              payers: {
+                select: { payerId: true, imputedToId: true, amount: true },
+              },
             },
           },
         },
@@ -282,29 +296,53 @@ export class SavingsEngine {
       const label = `Vente de ${vehicle.name}`;
       const bankAmount = Number(vehicle.soldVehicle.bankAmount ?? 0);
       const cashAmount = Number(vehicle.soldVehicle.cashAmount ?? 0);
+      const salePrice = Number(vehicle.soldVehicle.salePrice);
 
-      if (bankAmount > 0)
-        items.push({
-          id: `vehicle-sale-${vehicle.id}-bank`,
-          kind: 'ADDITION',
-          source: 'BANK',
-          amount: bankAmount,
-          label,
-          date: vehicle.soldVehicle.soldAt,
-          createdAt: vehicle.soldVehicle.createdAt,
-          sourceType: 'VEHICLE_SALE',
-        });
-      if (cashAmount > 0)
-        items.push({
-          id: `vehicle-sale-${vehicle.id}-cash`,
-          kind: 'ADDITION',
-          source: 'CASH',
-          amount: cashAmount,
-          label,
-          date: vehicle.soldVehicle.soldAt,
-          createdAt: vehicle.soldVehicle.createdAt,
-          sourceType: 'VEHICLE_SALE',
-        });
+      // The full sale proceeds aren't all the owner's — a co-owned vehicle's
+      // sale still owes the other beneficiaries their share (settled via the
+      // SOLD_VEHICLE debts created in DeclareSaleService). Only the owner's
+      // own share (mise + their part of the profit/deficit) is genuinely
+      // theirs to add to savings, computed with the exact same rule used for
+      // that settlement.
+      const payments = vehicle.expenses.flatMap((e) => e.payers);
+      const totalExpensesAmount = payments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0,
+      );
+      const profit = salePrice - totalExpensesAmount;
+      const investedByUser = computeInvestedByResponsibleParty(payments);
+      const beneficiaries = buildProfitShareBeneficiaries(
+        userId,
+        vehicle.participants.map((p) => ({
+          id: p.contactId,
+          profitShare: Number(p.profitShare),
+        })),
+      );
+      const profitShareById = computeProfitShares(profit, beneficiaries);
+      const ownerInvested = investedByUser.get(userId) ?? 0;
+      const ownerShareAmount =
+        ownerInvested + (profitShareById.get(userId) ?? 0);
+
+      if (ownerShareAmount <= 0) continue;
+
+      // Which pool the sale proceeds physically landed in is only
+      // unambiguous when it's a single pool — a split across both doesn't
+      // say which euros are the owner's share vs a co-owner's, so it
+      // defaults to bank (correctable by hand via a manual savings movement
+      // once the actual payout to the co-owner is known).
+      const ownerSource: SavingsSource =
+        cashAmount > 0 && bankAmount === 0 ? 'CASH' : 'BANK';
+
+      items.push({
+        id: `vehicle-sale-${vehicle.id}`,
+        kind: 'ADDITION',
+        source: ownerSource,
+        amount: ownerShareAmount,
+        label,
+        date: vehicle.soldVehicle.soldAt,
+        createdAt: vehicle.soldVehicle.createdAt,
+        sourceType: 'VEHICLE_SALE',
+      });
     }
 
     // Most recent first throughout, consistently — `date` only carries day

@@ -14,34 +14,10 @@ import {
 } from '@modules/vehicle/domain/vehicle.errors';
 import {
   buildProfitShareBeneficiaries,
+  computeInvestedByResponsibleParty,
   computeProfitShares,
 } from '@modules/vehicle/domain/profit-sharing';
 import { DeclareSaleCommand } from './declare-sale.command';
-
-type ExpensePaymentRecord = {
-  payerId: string;
-  imputedToId: string | null;
-  amount: unknown; // Prisma Decimal
-};
-
-// Money someone paid but delegated to someone else isn't really their own
-// investment — it's the delegate's, who already owes it back separately
-// (see add-expense.service.ts). Counting it here too would pay the payer
-// twice for the same money.
-function computeInvestedByResponsibleParty(
-  payments: ExpensePaymentRecord[],
-): Map<string, number> {
-  const investedByUser = new Map<string, number>();
-  for (const payment of payments) {
-    const responsibleId = payment.imputedToId ?? payment.payerId;
-    const amount = Number(payment.amount);
-    investedByUser.set(
-      responsibleId,
-      (investedByUser.get(responsibleId) ?? 0) + amount,
-    );
-  }
-  return investedByUser;
-}
 
 @CommandHandler(DeclareSaleCommand)
 export class DeclareSaleService implements ICommandHandler {

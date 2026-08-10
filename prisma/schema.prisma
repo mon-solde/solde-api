@@ -97,10 +97,11 @@ model Vehicle {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  owner        Account              @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
-  participants VehicleParticipant[]
-  expenses     Expense[]
-  soldVehicle  SoldVehicle?
+  owner         Account              @relation(fields: [ownerId], references: [userId], onDelete: Cascade)
+  participants  VehicleParticipant[]
+  expenses      Expense[]
+  vehicleEvents VehicleEvent[]
+  soldVehicle   SoldVehicle?
 
   @@map("vehicles")
 }
@@ -157,6 +158,22 @@ model Expense {
   expenseDebts ExpenseDebt[]
 
   @@map("expenses")
+}
+
+// A free-form note about a vehicle — no amount, no payer, unrelated to
+// expenses/debts. Just a dated journal entry (e.g. "seller said only the
+// starter needed replacing, turned out the whole engine did").
+model VehicleEvent {
+  id        String   @id
+  vehicleId String
+  note      String
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_events")
 }
 
 model ExpensePayer {

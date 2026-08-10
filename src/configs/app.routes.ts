@@ -30,6 +30,8 @@ export const routesV1 = {
     byId: `${vehiclesRoot}/:vehicleId`,
     expenses: `${vehiclesRoot}/:vehicleId/expenses`,
     expenseById: `${vehiclesRoot}/:vehicleId/expenses/:expenseId`,
+    events: `${vehiclesRoot}/:vehicleId/events`,
+    eventById: `${vehiclesRoot}/:vehicleId/events/:eventId`,
     sale: `${vehiclesRoot}/:vehicleId/sale`,
   },
   wallet: {

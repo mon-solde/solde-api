@@ -75,6 +75,14 @@ export class ExpenseImputationRequiresOwnerError extends ExceptionBase {
   }
 }
 
+export class VehicleEventNotFoundError extends ExceptionBase {
+  static readonly message = 'Vehicle event not found';
+  public readonly code = 'VEHICLE_EVENT.NOT_FOUND';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(VehicleEventNotFoundError.message, cause, metadata);
+  }
+}
+
 export class VehicleSaleReimbursementRequiresOwnerError extends ExceptionBase {
   static readonly message =
     'A sale reimbursement must involve the vehicle owner as either the cashier or the participant being reimbursed';

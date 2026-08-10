@@ -9,6 +9,8 @@ import { VehicleEntity } from '../domain/vehicle.entity';
 import { VehicleMapper } from '../vehicle.mapper';
 import {
   InsertExpenseParams,
+  InsertVehicleEventParams,
+  UpdateVehicleEventParams,
   VehicleRepositoryPort,
 } from './vehicle.repository.port';
 
@@ -161,6 +163,45 @@ export class VehicleRepository
     });
     if (!expense) return false;
     await this.client.expense.delete({ where: { id: expenseId } });
+    return true;
+  }
+
+  async insertVehicleEvent(params: InsertVehicleEventParams): Promise<void> {
+    await this.client.vehicleEvent.create({
+      data: {
+        id: params.id,
+        vehicleId: params.vehicleId,
+        note: params.note,
+        date: params.date,
+      },
+    });
+  }
+
+  async updateVehicleEvent(
+    vehicleId: string,
+    eventId: string,
+    data: UpdateVehicleEventParams,
+  ): Promise<boolean> {
+    const event = await this.client.vehicleEvent.findFirst({
+      where: { id: eventId, vehicleId },
+    });
+    if (!event) return false;
+    await this.client.vehicleEvent.update({
+      where: { id: eventId },
+      data,
+    });
+    return true;
+  }
+
+  async deleteVehicleEvent(
+    vehicleId: string,
+    eventId: string,
+  ): Promise<boolean> {
+    const event = await this.client.vehicleEvent.findFirst({
+      where: { id: eventId, vehicleId },
+    });
+    if (!event) return false;
+    await this.client.vehicleEvent.delete({ where: { id: eventId } });
     return true;
   }
 }

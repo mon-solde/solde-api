@@ -55,8 +55,16 @@ export type ExpenseDetail = {
   id: string;
   label: string;
   date: Date;
+  createdAt: Date;
   totalAmount: number;
   payers: ExpensePayerDetail[];
+};
+
+export type VehicleEventDetail = {
+  id: string;
+  note: string;
+  date: Date;
+  createdAt: Date;
 };
 
 export type ReversementRepayment = {
@@ -93,6 +101,7 @@ export type VehicleDetail = {
     profitShare: number;
   }>;
   expenses: ExpenseDetail[];
+  events: VehicleEventDetail[];
   soldVehicle: {
     salePrice: number;
     soldAt: Date;
@@ -155,6 +164,9 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
           // between same-day expenses, most recent first, consistently.
           orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         },
+        vehicleEvents: {
+          orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        },
         soldVehicle: {
           include: {
             soldVehicleDebts: {
@@ -187,6 +199,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       id: e.id,
       label: e.label,
       date: e.date,
+      createdAt: e.createdAt,
       totalAmount: sumAmounts(e.payers),
       payers: e.payers.map((p) => ({
         payerId: p.payerId,
@@ -197,6 +210,13 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         imputedToFirstName: p.imputedTo?.firstName ?? null,
         imputedToLastName: p.imputedTo?.lastName ?? null,
       })),
+    }));
+
+    const events: VehicleEventDetail[] = vehicle.vehicleEvents.map((e) => ({
+      id: e.id,
+      note: e.note,
+      date: e.date,
+      createdAt: e.createdAt,
     }));
 
     // Summed from the flat list of payments, not from the per-expense
@@ -300,6 +320,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         profitShare: Number(p.profitShare),
       })),
       expenses,
+      events,
       soldVehicle: vehicle.soldVehicle
         ? {
             salePrice: Number(vehicle.soldVehicle.salePrice),

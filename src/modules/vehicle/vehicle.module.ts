@@ -15,6 +15,8 @@ import { UpdateEventHttpController } from './commands/update-event/update-event.
 import { UpdateEventService } from './commands/update-event/update-event.service';
 import { DeleteEventHttpController } from './commands/delete-event/delete-event.http.controller';
 import { DeleteEventService } from './commands/delete-event/delete-event.service';
+import { UpdateVehicleParticipantsHttpController } from './commands/update-vehicle-participants/update-vehicle-participants.http.controller';
+import { UpdateVehicleParticipantsService } from './commands/update-vehicle-participants/update-vehicle-participants.service';
 import { DeclareSaleHttpController } from './commands/declare-sale/declare-sale.http.controller';
 import { DeclareSaleService } from './commands/declare-sale/declare-sale.service';
 import { DeleteVehicleHttpController } from './commands/delete-vehicle/delete-vehicle.http.controller';
@@ -31,6 +33,7 @@ const httpControllers = [
   AddEventHttpController,
   UpdateEventHttpController,
   DeleteEventHttpController,
+  UpdateVehicleParticipantsHttpController,
   DeclareSaleHttpController,
   DeleteVehicleHttpController,
   FindVehiclesHttpController,
@@ -44,6 +47,7 @@ const commandHandlers: Provider[] = [
   AddEventService,
   UpdateEventService,
   DeleteEventService,
+  UpdateVehicleParticipantsService,
   DeclareSaleService,
   DeleteVehicleService,
 ];

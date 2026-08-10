@@ -32,6 +32,15 @@ export class VehicleProfitShareSumError extends ExceptionBase {
   }
 }
 
+export class VehicleParticipantMismatchError extends ExceptionBase {
+  static readonly message =
+    'The provided participants must exactly match the vehicle’s existing ones — this only updates profit shares, it cannot add or remove a participant';
+  public readonly code = 'VEHICLE.PARTICIPANT_MISMATCH';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(VehicleParticipantMismatchError.message, cause, metadata);
+  }
+}
+
 export class VehicleCashierNotParticipantError extends ExceptionBase {
   static readonly message = 'Cashier must be a participant of the vehicle';
   public readonly code = 'VEHICLE.CASHIER_NOT_PARTICIPANT';

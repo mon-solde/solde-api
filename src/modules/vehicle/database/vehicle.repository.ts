@@ -203,4 +203,18 @@ export class VehicleRepository
     await this.client.vehicleEvent.delete({ where: { id: eventId } });
     return true;
   }
+
+  async updateParticipantShares(
+    vehicleId: string,
+    participants: Array<{ contactId: string; profitShare: number }>,
+  ): Promise<void> {
+    await this.client.$transaction(
+      participants.map((p) =>
+        this.client.vehicleParticipant.update({
+          where: { vehicleId_contactId: { vehicleId, contactId: p.contactId } },
+          data: { profitShare: p.profitShare },
+        }),
+      ),
+    );
+  }
 }

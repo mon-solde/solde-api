@@ -39,4 +39,8 @@ export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {
     data: UpdateVehicleEventParams,
   ): Promise<boolean>;
   deleteVehicleEvent(vehicleId: string, eventId: string): Promise<boolean>;
+  updateParticipantShares(
+    vehicleId: string,
+    participants: Array<{ contactId: string; profitShare: number }>,
+  ): Promise<void>;
 }

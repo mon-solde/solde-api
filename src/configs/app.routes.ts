@@ -32,6 +32,7 @@ export const routesV1 = {
     expenseById: `${vehiclesRoot}/:vehicleId/expenses/:expenseId`,
     events: `${vehiclesRoot}/:vehicleId/events`,
     eventById: `${vehiclesRoot}/:vehicleId/events/:eventId`,
+    participants: `${vehiclesRoot}/:vehicleId/participants`,
     sale: `${vehiclesRoot}/:vehicleId/sale`,
   },
   wallet: {

@@ -172,7 +172,6 @@ export class VehicleRepository
         id: params.id,
         vehicleId: params.vehicleId,
         note: params.note,
-        date: params.date,
       },
     });
   }

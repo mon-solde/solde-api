@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class AddEventRequestDto {
   @ApiProperty({
@@ -9,8 +9,4 @@ export class AddEventRequestDto {
   @IsNotEmpty()
   @MaxLength(2000)
   readonly note: string;
-
-  @ApiProperty({ example: '2024-03-10' })
-  @IsDateString()
-  readonly date: string;
 }

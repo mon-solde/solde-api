@@ -63,7 +63,6 @@ export type ExpenseDetail = {
 export type VehicleEventDetail = {
   id: string;
   note: string;
-  date: Date;
   createdAt: Date;
 };
 
@@ -165,7 +164,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
           orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         },
         vehicleEvents: {
-          orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+          orderBy: { createdAt: 'desc' },
         },
         soldVehicle: {
           include: {
@@ -215,7 +214,6 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     const events: VehicleEventDetail[] = vehicle.vehicleEvents.map((e) => ({
       id: e.id,
       note: e.note,
-      date: e.date,
       createdAt: e.createdAt,
     }));
 

@@ -163,11 +163,13 @@ model Expense {
 // A free-form note about a vehicle — no amount, no payer, unrelated to
 // expenses/debts. Just a dated journal entry (e.g. "seller said only the
 // starter needed replacing, turned out the whole engine did").
+// No date on purpose — a note often describes a saga spanning weeks or
+// months, not a single moment, so it isn't placed in the dated expense
+// timeline. It lives in its own list, most recent first by createdAt.
 model VehicleEvent {
   id        String   @id
   vehicleId String
   note      String
-  date      DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

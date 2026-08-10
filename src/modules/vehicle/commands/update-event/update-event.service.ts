@@ -25,7 +25,7 @@ export class UpdateEventService implements ICommandHandler {
     const updated = await this.vehicleRepo.updateVehicleEvent(
       command.vehicleId,
       command.eventId,
-      { note: command.note, date: command.date },
+      { note: command.note },
     );
     if (!updated) return Err(new VehicleEventNotFoundError());
 

@@ -25,7 +25,6 @@ export class AddEventService implements ICommandHandler {
       id: eventId,
       vehicleId: command.vehicleId,
       note: command.note,
-      date: command.date,
     });
 
     return Ok(eventId);

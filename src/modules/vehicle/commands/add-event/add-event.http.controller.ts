@@ -33,7 +33,6 @@ export class AddEventHttpController {
     const command = new AddEventCommand({
       vehicleId,
       note: body.note,
-      date: new Date(body.date),
     });
 
     const result: Result<string, VehicleNotFoundError> =

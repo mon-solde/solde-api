@@ -18,12 +18,10 @@ export interface InsertVehicleEventParams {
   id: string;
   vehicleId: string;
   note: string;
-  date: Date;
 }
 
 export interface UpdateVehicleEventParams {
   note: string;
-  date: Date;
 }
 
 export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {

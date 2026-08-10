@@ -39,7 +39,6 @@ export class UpdateEventHttpController {
       vehicleId,
       eventId,
       note: body.note,
-      date: new Date(body.date),
     });
 
     const result: Result<

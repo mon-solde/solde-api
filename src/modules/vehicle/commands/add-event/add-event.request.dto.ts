@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class AddEventRequestDto {
   @ApiProperty({
@@ -7,6 +7,5 @@ export class AddEventRequestDto {
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(2000)
   readonly note: string;
 }

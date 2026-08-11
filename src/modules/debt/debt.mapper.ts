@@ -109,7 +109,7 @@ export class DebtMapper
     dto.vehicleId = props.vehicleId;
     dto.vehicleName = props.vehicleName;
     dto.totalRepaid = entity.totalRepaid;
-    dto.remaining = Math.max(0, props.amount - entity.totalRepaid);
+    dto.remaining = entity.remaining;
     dto.isRepaid = entity.isRepaid;
     dto.repayments = props.repayments.map((r) => ({
       id: r.id,

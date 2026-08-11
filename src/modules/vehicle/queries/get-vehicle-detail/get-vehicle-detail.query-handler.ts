@@ -46,6 +46,7 @@ export type ExpensePayerDetail = {
   firstName: string;
   lastName: string | null;
   amount: number;
+  source: 'BANK' | 'CASH' | null;
   imputedToId: string | null;
   imputedToFirstName: string | null;
   imputedToLastName: string | null;
@@ -205,6 +206,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         firstName: p.payer.firstName,
         lastName: p.payer.lastName,
         amount: Number(p.amount),
+        source: p.source ?? null,
         imputedToId: p.imputedToId ?? null,
         imputedToFirstName: p.imputedTo?.firstName ?? null,
         imputedToLastName: p.imputedTo?.lastName ?? null,

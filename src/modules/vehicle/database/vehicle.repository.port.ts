@@ -14,6 +14,17 @@ export interface InsertExpenseParams {
   }>;
 }
 
+export interface UpdateExpenseParams {
+  label: string;
+  date: Date;
+  payers: Array<{
+    payerId: string;
+    amount: number;
+    source?: 'BANK' | 'CASH';
+    imputedToId?: string;
+  }>;
+}
+
 export interface InsertVehicleEventParams {
   id: string;
   vehicleId: string;
@@ -32,6 +43,11 @@ export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {
   ): Promise<{ debtId: string; hasRepayments: boolean }[]>;
   deleteDebtsByIds(debtIds: string[]): Promise<void>;
   deleteExpense(vehicleId: string, expenseId: string): Promise<boolean>;
+  updateExpense(
+    vehicleId: string,
+    expenseId: string,
+    params: UpdateExpenseParams,
+  ): Promise<boolean>;
   insertVehicleEvent(params: InsertVehicleEventParams): Promise<void>;
   updateVehicleEvent(
     vehicleId: string,

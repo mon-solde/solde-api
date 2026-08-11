@@ -7,6 +7,8 @@ import { CreateVehicleHttpController } from './commands/create-vehicle/create-ve
 import { CreateVehicleService } from './commands/create-vehicle/create-vehicle.service';
 import { AddExpenseHttpController } from './commands/add-expense/add-expense.http.controller';
 import { AddExpenseService } from './commands/add-expense/add-expense.service';
+import { UpdateExpenseHttpController } from './commands/update-expense/update-expense.http.controller';
+import { UpdateExpenseService } from './commands/update-expense/update-expense.service';
 import { DeleteExpenseHttpController } from './commands/delete-expense/delete-expense.http.controller';
 import { DeleteExpenseService } from './commands/delete-expense/delete-expense.service';
 import { AddEventHttpController } from './commands/add-event/add-event.http.controller';
@@ -29,6 +31,7 @@ import { GetVehicleDetailQueryHandler } from './queries/get-vehicle-detail/get-v
 const httpControllers = [
   CreateVehicleHttpController,
   AddExpenseHttpController,
+  UpdateExpenseHttpController,
   DeleteExpenseHttpController,
   AddEventHttpController,
   UpdateEventHttpController,
@@ -43,6 +46,7 @@ const httpControllers = [
 const commandHandlers: Provider[] = [
   CreateVehicleService,
   AddExpenseService,
+  UpdateExpenseService,
   DeleteExpenseService,
   AddEventService,
   UpdateEventService,

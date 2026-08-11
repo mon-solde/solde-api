@@ -10,6 +10,7 @@ import { VehicleMapper } from '../vehicle.mapper';
 import {
   InsertExpenseParams,
   InsertVehicleEventParams,
+  UpdateExpenseParams,
   UpdateVehicleEventParams,
   VehicleRepositoryPort,
 } from './vehicle.repository.port';
@@ -163,6 +164,38 @@ export class VehicleRepository
     });
     if (!expense) return false;
     await this.client.expense.delete({ where: { id: expenseId } });
+    return true;
+  }
+
+  async updateExpense(
+    vehicleId: string,
+    expenseId: string,
+    params: UpdateExpenseParams,
+  ): Promise<boolean> {
+    const expense = await this.client.expense.findFirst({
+      where: { id: expenseId, vehicleId },
+    });
+    if (!expense) return false;
+
+    await this.client.$transaction([
+      this.client.expensePayer.deleteMany({ where: { expenseId } }),
+      this.client.expense.update({
+        where: { id: expenseId },
+        data: {
+          label: params.label,
+          date: params.date,
+          payers: {
+            create: params.payers.map((p) => ({
+              payerId: p.payerId,
+              amount: p.amount,
+              source: p.source,
+              imputedToId: p.imputedToId ?? null,
+            })),
+          },
+        },
+      }),
+    ]);
+
     return true;
   }
 

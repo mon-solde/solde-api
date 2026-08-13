@@ -1,26 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ResponseBase } from '@libs/api/response.base';
 
-export class ActionPaymentResponseDto {
-  @ApiProperty() id: string;
-  @ApiProperty() amount: number;
-  @ApiProperty() paymentDate: Date;
-}
-
-export class AutomaticDeductionResponseDto {
+export class MonthlyRecurringChargeResponseDto {
   @ApiProperty() id: string;
   @ApiProperty({ required: false }) recurringChargeId?: string;
   @ApiProperty() label: string;
   @ApiProperty() amount: number;
-}
-
-export class ManualActionResponseDto {
-  @ApiProperty() id: string;
-  @ApiProperty({ required: false }) recurringChargeId?: string;
-  @ApiProperty() label: string;
-  @ApiProperty() plannedAmount: number;
-  @ApiProperty({ type: [ActionPaymentResponseDto] })
-  payments: ActionPaymentResponseDto[];
+  @ApiProperty({ enum: ['AUTOMATIC', 'MANUAL'] }) type: 'AUTOMATIC' | 'MANUAL';
+  @ApiProperty({ required: false }) dueDay?: number;
 }
 
 export class BudgetSavingsWithdrawalResponseDto {
@@ -35,10 +22,8 @@ export class MonthlyBudgetResponseDto extends ResponseBase {
   @ApiProperty() year: number;
   @ApiProperty() month: number;
   @ApiProperty() receivedSalary: number;
-  @ApiProperty({ type: [AutomaticDeductionResponseDto] })
-  automaticDeductions: AutomaticDeductionResponseDto[];
-  @ApiProperty({ type: [ManualActionResponseDto] })
-  manualActions: ManualActionResponseDto[];
+  @ApiProperty({ type: [MonthlyRecurringChargeResponseDto] })
+  recurringCharges: MonthlyRecurringChargeResponseDto[];
 }
 
 export class MonthlyBudgetDetailResponseDto extends MonthlyBudgetResponseDto {

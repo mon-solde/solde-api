@@ -5,6 +5,8 @@ import { RecurringChargeRepository } from './database/recurring-charge.repositor
 import { RecurringChargeMapper } from './recurring-charge.mapper';
 import { CreateRecurringChargeHttpController } from './commands/create-recurring-charge/create-recurring-charge.http.controller';
 import { CreateRecurringChargeService } from './commands/create-recurring-charge/create-recurring-charge.service';
+import { UpdateRecurringChargeHttpController } from './commands/update-recurring-charge/update-recurring-charge.http.controller';
+import { UpdateRecurringChargeService } from './commands/update-recurring-charge/update-recurring-charge.service';
 import { DeleteRecurringChargeHttpController } from './commands/delete-recurring-charge/delete-recurring-charge.http.controller';
 import { DeleteRecurringChargeService } from './commands/delete-recurring-charge/delete-recurring-charge.service';
 import { DeactivateRecurringChargeHttpController } from './commands/deactivate-recurring-charge/deactivate-recurring-charge.http.controller';
@@ -16,6 +18,7 @@ import { FindRecurringChargesQueryHandler } from './queries/find-recurring-charg
 
 const httpControllers = [
   CreateRecurringChargeHttpController,
+  UpdateRecurringChargeHttpController,
   DeleteRecurringChargeHttpController,
   DeactivateRecurringChargeHttpController,
   ActivateRecurringChargeHttpController,
@@ -24,6 +27,7 @@ const httpControllers = [
 
 const commandHandlers: Provider[] = [
   CreateRecurringChargeService,
+  UpdateRecurringChargeService,
   DeleteRecurringChargeService,
   DeactivateRecurringChargeService,
   ActivateRecurringChargeService,

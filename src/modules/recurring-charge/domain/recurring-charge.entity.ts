@@ -12,7 +12,11 @@ export class RecurringChargeEntity extends AggregateRoot<RecurringChargeProps> {
     const id = randomUUID();
     return new RecurringChargeEntity({
       id,
-      props: { ...props, inactiveAt: undefined },
+      props: {
+        ...props,
+        inactiveAt: undefined,
+        currentVersionId: randomUUID(),
+      },
     });
   }
 

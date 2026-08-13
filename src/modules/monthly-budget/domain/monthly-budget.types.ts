@@ -1,22 +1,14 @@
-export interface AutomaticDeductionProps {
+export interface MonthlyRecurringChargeProps {
   id: string;
-  recurringChargeId?: string;
+  recurringChargeHistoryId: string;
+  // Denormalized from the linked RecurringChargeHistory row purely for
+  // convenience in-memory — never written back, always sourced from the
+  // join on read.
   label: string;
   amount: number;
-}
-
-export interface ActionPaymentProps {
-  id: string;
-  amount: number;
-  paymentDate: Date;
-}
-
-export interface ManualActionProps {
-  id: string;
+  type: 'AUTOMATIC' | 'MANUAL';
+  dueDay?: number;
   recurringChargeId?: string;
-  label: string;
-  plannedAmount: number;
-  payments: ActionPaymentProps[];
 }
 
 export interface MonthlyBudgetProps {
@@ -24,8 +16,7 @@ export interface MonthlyBudgetProps {
   year: number;
   month: number;
   receivedSalary: number;
-  automaticDeductions: AutomaticDeductionProps[];
-  manualActions: ManualActionProps[];
+  recurringCharges: MonthlyRecurringChargeProps[];
 }
 
 export interface CreateMonthlyBudgetProps {
@@ -33,6 +24,5 @@ export interface CreateMonthlyBudgetProps {
   year: number;
   month: number;
   receivedSalary: number;
-  automaticDeductions: Omit<AutomaticDeductionProps, 'id'>[];
-  manualActions: Omit<ManualActionProps, 'id' | 'payments'>[];
+  recurringCharges: Omit<MonthlyRecurringChargeProps, 'id'>[];
 }

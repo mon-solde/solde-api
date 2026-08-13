@@ -23,11 +23,3 @@ export class MonthlyBudgetAlreadyExistsError extends ExceptionBase {
     super(MonthlyBudgetAlreadyExistsError.message, cause);
   }
 }
-
-export class MonthlyManualActionNotFoundError extends ExceptionBase {
-  static readonly message = 'Manual action not found in this budget';
-  readonly code = 'MONTHLY_BUDGET.ACTION_NOT_FOUND';
-  constructor(cause?: Error) {
-    super(MonthlyManualActionNotFoundError.message, cause);
-  }
-}

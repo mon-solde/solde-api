@@ -27,18 +27,13 @@ export type BudgetDetailModel = {
   receivedSalary: unknown;
   createdAt: Date;
   updatedAt: Date;
-  automaticDeductions: {
+  recurringCharges: {
     id: string;
     recurringChargeId: string | null;
     label: string;
     amount: unknown;
-  }[];
-  manualActions: {
-    id: string;
-    recurringChargeId: string | null;
-    label: string;
-    plannedAmount: unknown;
-    payments: { id: string; amount: unknown; paymentDate: Date }[];
+    type: 'AUTOMATIC' | 'MANUAL';
+    dueDay: number | null;
   }[];
   savingsWithdrawals: BudgetSavingsWithdrawalModel[];
 };
@@ -59,8 +54,7 @@ export class FindMonthlyBudgetQueryHandler implements IQueryHandler {
         },
       },
       include: {
-        automaticDeductions: true,
-        manualActions: { include: { payments: true } },
+        recurringCharges: { include: { recurringChargeHistory: true } },
         savingsWithdrawals: true,
       },
     });
@@ -75,8 +69,14 @@ export class FindMonthlyBudgetQueryHandler implements IQueryHandler {
       receivedSalary: result.receivedSalary,
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
-      automaticDeductions: result.automaticDeductions,
-      manualActions: result.manualActions,
+      recurringCharges: result.recurringCharges.map((c) => ({
+        id: c.id,
+        recurringChargeId: c.recurringChargeHistory.recurringChargeId,
+        label: c.recurringChargeHistory.name,
+        amount: c.recurringChargeHistory.amount,
+        type: c.recurringChargeHistory.type,
+        dueDay: c.recurringChargeHistory.dueDay,
+      })),
       savingsWithdrawals: result.savingsWithdrawals.map((w) => ({
         id: w.id,
         amount: w.amount,

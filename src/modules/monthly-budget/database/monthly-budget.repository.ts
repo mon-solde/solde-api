@@ -15,34 +15,22 @@ export type MonthlyBudgetModel = {
   receivedSalary: unknown;
   createdAt: Date;
   updatedAt: Date;
-  automaticDeductions?: {
+  recurringCharges?: {
     id: string;
-    recurringChargeId: string | null;
-    label: string;
-    amount: unknown;
+    recurringChargeHistoryId: string;
     createdAt: Date;
-    updatedAt: Date;
-  }[];
-  manualActions?: {
-    id: string;
-    recurringChargeId: string | null;
-    label: string;
-    plannedAmount: unknown;
-    createdAt: Date;
-    updatedAt: Date;
-    payments?: {
-      id: string;
+    recurringChargeHistory: {
+      recurringChargeId: string | null;
+      name: string;
       amount: unknown;
-      paymentDate: Date;
-      createdAt: Date;
-      updatedAt: Date;
-    }[];
+      type: 'AUTOMATIC' | 'MANUAL';
+      dueDay: number | null;
+    };
   }[];
 };
 
 const include = {
-  automaticDeductions: true,
-  manualActions: { include: { payments: true } },
+  recurringCharges: { include: { recurringChargeHistory: true } },
 } as const;
 
 @Injectable()
@@ -105,23 +93,11 @@ export class MonthlyBudgetRepository
         receivedSalary: p.receivedSalary,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
-        automaticDeductions: {
+        recurringCharges: {
           createMany: {
-            data: p.automaticDeductions.map((d) => ({
-              id: d.id,
-              recurringChargeId: d.recurringChargeId ?? null,
-              label: d.label,
-              amount: d.amount,
-            })),
-          },
-        },
-        manualActions: {
-          createMany: {
-            data: p.manualActions.map((a) => ({
-              id: a.id,
-              recurringChargeId: a.recurringChargeId ?? null,
-              label: a.label,
-              plannedAmount: a.plannedAmount,
+            data: p.recurringCharges.map((c) => ({
+              id: c.id,
+              recurringChargeHistoryId: c.recurringChargeHistoryId,
             })),
           },
         },
@@ -130,27 +106,13 @@ export class MonthlyBudgetRepository
     await entity.publishEvents(this.logger, this.eventEmitter);
   }
 
+  // recurringCharges are frozen at insert() time and never touched again —
+  // save() only ever needs to persist receivedSalary.
   async save(entity: MonthlyBudgetEntity): Promise<void> {
     const p = entity.getProps();
-
     await this.client.monthlyBudget.update({
       where: { id: entity.id },
       data: { receivedSalary: p.receivedSalary },
     });
-
-    const allPayments = p.manualActions.flatMap((a) =>
-      a.payments.map((pay) => ({
-        id: pay.id,
-        actionId: a.id,
-        amount: pay.amount,
-        paymentDate: pay.paymentDate,
-      })),
-    );
-    if (allPayments.length > 0) {
-      await this.client.actionPayment.createMany({
-        data: allPayments,
-        skipDuplicates: true,
-      });
-    }
   }
 }

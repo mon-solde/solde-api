@@ -37,20 +37,17 @@ export class InitMonthService implements ICommandHandler {
       year: command.year,
       month: command.month,
       receivedSalary: command.receivedSalary,
-      automaticDeductions: activeCharges
-        .filter((c) => c.getProps().type === 'AUTOMATIC')
-        .map((c) => ({
+      recurringCharges: activeCharges.map((c) => {
+        const props = c.getProps();
+        return {
+          recurringChargeHistoryId: props.currentVersionId,
           recurringChargeId: c.id,
-          label: c.getProps().name,
-          amount: c.getProps().amount,
-        })),
-      manualActions: activeCharges
-        .filter((c) => c.getProps().type === 'MANUAL')
-        .map((c) => ({
-          recurringChargeId: c.id,
-          label: c.getProps().name,
-          plannedAmount: c.getProps().amount,
-        })),
+          label: props.name,
+          amount: props.amount,
+          type: props.type,
+          dueDay: props.dueDay,
+        };
+      }),
     });
 
     await this.budgetRepo.insert(budget);

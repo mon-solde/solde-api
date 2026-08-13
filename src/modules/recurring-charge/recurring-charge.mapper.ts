@@ -13,33 +13,30 @@ export class RecurringChargeMapper
       RecurringChargeResponseDto
     >
 {
-  toPersistence(entity: RecurringChargeEntity): RecurringChargeModel {
-    const copy = entity.getProps();
-    return {
-      id: copy.id,
-      createdAt: copy.createdAt,
-      updatedAt: copy.updatedAt,
-      userId: copy.userId,
-      name: copy.name,
-      amount: copy.amount,
-      type: copy.type,
-      dueDay: copy.dueDay ?? null,
-      inactiveAt: copy.inactiveAt ?? null,
-    };
+  toPersistence(_entity: RecurringChargeEntity): RecurringChargeModel {
+    // Never actually called: RecurringChargeRepository.insert() is
+    // overridden, since creating a charge also has to create its first
+    // RecurringChargeHistory row in the same write — a shape this flat
+    // mapper can't express. See RecurringChargeRepository.insert().
+    throw new Error(
+      'RecurringChargeMapper.toPersistence is not supported — recurring charges are created via RecurringChargeRepository.insert() directly.',
+    );
   }
 
   toDomain(record: RecurringChargeModel): RecurringChargeEntity {
+    const version = record.history[0];
     return new RecurringChargeEntity({
       id: record.id,
       createdAt: new Date(record.createdAt),
       updatedAt: new Date(record.updatedAt),
       props: {
         userId: record.userId,
-        name: record.name,
-        amount: Number(record.amount),
-        type: record.type,
-        dueDay: record.dueDay ?? undefined,
+        name: version.name,
+        amount: Number(version.amount),
+        type: version.type,
+        dueDay: version.dueDay ?? undefined,
         inactiveAt: record.inactiveAt ?? undefined,
+        currentVersionId: version.id,
       },
     });
   }

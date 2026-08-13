@@ -47,22 +47,13 @@ export class FindMonthlyBudgetHttpController {
         year: budget.year,
         month: budget.month,
         receivedSalary: Number(budget.receivedSalary),
-        automaticDeductions: budget.automaticDeductions.map((d) => ({
-          id: d.id,
-          recurringChargeId: d.recurringChargeId ?? undefined,
-          label: d.label,
-          amount: Number(d.amount),
-        })),
-        manualActions: budget.manualActions.map((a) => ({
-          id: a.id,
-          recurringChargeId: a.recurringChargeId ?? undefined,
-          label: a.label,
-          plannedAmount: Number(a.plannedAmount),
-          payments: a.payments.map((p) => ({
-            id: p.id,
-            amount: Number(p.amount),
-            paymentDate: p.paymentDate,
-          })),
+        recurringCharges: budget.recurringCharges.map((c) => ({
+          id: c.id,
+          recurringChargeId: c.recurringChargeId ?? undefined,
+          label: c.label,
+          amount: Number(c.amount),
+          type: c.type,
+          dueDay: c.dueDay ?? undefined,
         })),
         savingsWithdrawals: budget.savingsWithdrawals.map((w) => ({
           id: w.id,

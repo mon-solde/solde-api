@@ -32,22 +32,14 @@ export class MonthlyBudgetMapper
         year: record.year,
         month: record.month,
         receivedSalary: Number(record.receivedSalary),
-        automaticDeductions: (record.automaticDeductions ?? []).map((d) => ({
-          id: d.id,
-          recurringChargeId: d.recurringChargeId ?? undefined,
-          label: d.label,
-          amount: Number(d.amount),
-        })),
-        manualActions: (record.manualActions ?? []).map((a) => ({
-          id: a.id,
-          recurringChargeId: a.recurringChargeId ?? undefined,
-          label: a.label,
-          plannedAmount: Number(a.plannedAmount),
-          payments: (a.payments ?? []).map((p) => ({
-            id: p.id,
-            amount: Number(p.amount),
-            paymentDate: new Date(p.paymentDate),
-          })),
+        recurringCharges: (record.recurringCharges ?? []).map((c) => ({
+          id: c.id,
+          recurringChargeHistoryId: c.recurringChargeHistoryId,
+          recurringChargeId: c.recurringChargeHistory.recurringChargeId ?? undefined,
+          label: c.recurringChargeHistory.name,
+          amount: Number(c.recurringChargeHistory.amount),
+          type: c.recurringChargeHistory.type,
+          dueDay: c.recurringChargeHistory.dueDay ?? undefined,
         })),
       },
     });
@@ -60,22 +52,13 @@ export class MonthlyBudgetMapper
     dto.year = p.year;
     dto.month = p.month;
     dto.receivedSalary = p.receivedSalary;
-    dto.automaticDeductions = p.automaticDeductions.map((d) => ({
-      id: d.id,
-      recurringChargeId: d.recurringChargeId,
-      label: d.label,
-      amount: d.amount,
-    }));
-    dto.manualActions = p.manualActions.map((a) => ({
-      id: a.id,
-      recurringChargeId: a.recurringChargeId,
-      label: a.label,
-      plannedAmount: a.plannedAmount,
-      payments: a.payments.map((pay) => ({
-        id: pay.id,
-        amount: pay.amount,
-        paymentDate: pay.paymentDate,
-      })),
+    dto.recurringCharges = p.recurringCharges.map((c) => ({
+      id: c.id,
+      recurringChargeId: c.recurringChargeId,
+      label: c.label,
+      amount: c.amount,
+      type: c.type,
+      dueDay: c.dueDay,
     }));
     return dto;
   }

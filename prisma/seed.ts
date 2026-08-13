@@ -8,13 +8,13 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   const user = await prisma.user.create({
     data: {
-      id: 'f59d0748-d455-4465-b0a8-8d8260b1c877',
-      firstName: 'John',
-      lastName: 'Doe',
+      id: 'YShNI412D9cEaKRFhHDalGA4irs1',
+      firstName: 'Karim',
+      lastName: null,
       role: 'ACCOUNT',
       account: {
         create: {
-          email: 'john@gmail.com',
+          email: 'elkarim741@gmail.com',
         },
       },
     },

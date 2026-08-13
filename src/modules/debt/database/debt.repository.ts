@@ -33,6 +33,12 @@ export type SoldVehicleDebtRecord = {
   soldVehicle: { vehicleId: string; vehicle?: { name: string } | null };
 };
 
+export type ExpenseDebtRecord = {
+  debtId: string;
+  expenseId: string;
+  expense: { label: string };
+};
+
 export type DebtModel = {
   id: string;
   ownerId: string;
@@ -48,6 +54,7 @@ export type DebtModel = {
   contact?: { user: UserInfo };
   manualDebt?: ManualDebtRecord | null;
   soldVehicleDebt?: SoldVehicleDebtRecord | null;
+  expenseDebt?: ExpenseDebtRecord | null;
 };
 
 // Account/Contact don't carry firstName/lastName themselves — those live on
@@ -64,6 +71,11 @@ const include = {
       soldVehicle: {
         select: { vehicleId: true, vehicle: { select: { name: true } } },
       },
+    },
+  },
+  expenseDebt: {
+    include: {
+      expense: { select: { label: true } },
     },
   },
 } as const;

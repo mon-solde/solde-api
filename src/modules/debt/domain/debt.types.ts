@@ -1,6 +1,7 @@
 export enum DebtType {
   MANUAL = 'MANUAL',
   SOLD_VEHICLE = 'SOLD_VEHICLE',
+  EXPENSE = 'EXPENSE',
 }
 
 export interface RepaymentProps {

@@ -37,6 +37,7 @@ export class DebtMapper
         `${ownerInfo.firstName} ${ownerInfo.lastName ?? ''}`.trim();
 
     const isSoldVehicle = record.type === DebtType.SOLD_VEHICLE;
+    const isExpense = record.type === DebtType.EXPENSE;
 
     if (isSoldVehicle) {
       return new DebtEntity({
@@ -54,6 +55,34 @@ export class DebtMapper
           vehicleId: record.soldVehicleDebt?.soldVehicle.vehicleId,
           vehicleName:
             record.soldVehicleDebt?.soldVehicle.vehicle?.name ?? undefined,
+          repayments: (record.repayments ?? []).map((r) => ({
+            id: r.id,
+            amount: Number(r.amount),
+            date: new Date(r.date),
+            note: r.note ?? undefined,
+            source: r.source as 'BANK' | 'CASH',
+          })),
+        },
+      });
+    }
+
+    if (isExpense) {
+      return new DebtEntity({
+        id: record.id,
+        createdAt: new Date(record.createdAt),
+        updatedAt: new Date(record.updatedAt),
+        props: {
+          lenderId,
+          borrowerId,
+          lenderName: lenderName || undefined,
+          borrowerName: borrowerName || undefined,
+          amount: Number(record.amount),
+          date: new Date(record.date),
+          type: DebtType.EXPENSE,
+          // Surfaced as the debt's "note" so it isn't left with no visible
+          // context — the debt itself carries no free-text field, but the
+          // expense it comes from always has a label.
+          description: record.expenseDebt?.expense.label,
           repayments: (record.repayments ?? []).map((r) => ({
             id: r.id,
             amount: Number(r.amount),

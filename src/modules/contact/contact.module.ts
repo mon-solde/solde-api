@@ -47,5 +47,6 @@ const repositories: Provider[] = [
     ...queryHandlers,
     ...mappers,
   ],
+  exports: [CONTACT_REPOSITORY],
 })
 export class ContactModule {}

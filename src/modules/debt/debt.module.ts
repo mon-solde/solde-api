@@ -1,6 +1,7 @@
 import { Logger, Module, Provider } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { SavingsModule } from '@modules/savings/savings.module';
+import { ContactModule } from '@modules/contact/contact.module';
 import { DEBT_REPOSITORY } from './debt.di-tokens';
 import { DebtRepository } from './database/debt.repository';
 import { DebtMapper } from './debt.mapper';
@@ -41,7 +42,7 @@ const repositories: Provider[] = [
 ];
 
 @Module({
-  imports: [CqrsModule, SavingsModule],
+  imports: [CqrsModule, SavingsModule, ContactModule],
   controllers: [...httpControllers],
   providers: [
     Logger,

@@ -4,6 +4,9 @@ import { Err, Ok, Result } from 'oxide.ts';
 import { AggregateID } from '@libs/ddd';
 import { PrismaService } from '@libs/db/prisma.service';
 import { SavingsEngine } from '@modules/savings/savings-engine.service';
+import { CONTACT_REPOSITORY } from '@modules/contact/contact.di-tokens';
+import { ContactRepositoryPort } from '@modules/contact/database/contact.repository.port';
+import { ContactNotFoundError } from '@modules/contact/domain/contact.errors';
 import { DEBT_REPOSITORY } from '../../debt.di-tokens';
 import { DebtRepositoryPort } from '../../database/debt.repository.port';
 import { DebtEntity } from '../../domain/debt.entity';
@@ -15,13 +18,33 @@ export class CreateDebtService implements ICommandHandler {
   constructor(
     @Inject(DEBT_REPOSITORY)
     private readonly debtRepo: DebtRepositoryPort,
+    @Inject(CONTACT_REPOSITORY)
+    private readonly contactRepo: ContactRepositoryPort,
     private readonly prisma: PrismaService,
     private readonly savingsEngine: SavingsEngine,
   ) {}
 
   async execute(
     command: CreateDebtCommand,
-  ): Promise<Result<AggregateID, InsufficientSavingsError>> {
+  ): Promise<
+    Result<AggregateID, InsufficientSavingsError | ContactNotFoundError>
+  > {
+    // command.role tells us which side of lenderId/borrowerId is the
+    // authenticated account vs. the other party — the other party must be
+    // one of the account's own contacts, never an arbitrary id supplied by
+    // the client.
+    const ownerId =
+      command.role === 'LENT' ? command.lenderId : command.borrowerId;
+    const contactId =
+      command.role === 'LENT' ? command.borrowerId : command.lenderId;
+
+    const contact = await this.contactRepo.findOneByIdIncludingHidden(
+      contactId,
+    );
+    if (!contact || contact.ownerId !== ownerId) {
+      return Err(new ContactNotFoundError());
+    }
+
     const debt = DebtEntity.createManual({
       lenderId: command.lenderId,
       borrowerId: command.borrowerId,
@@ -50,12 +73,6 @@ export class CreateDebtService implements ICommandHandler {
     }
 
     const props = debt.getProps();
-    // command.role tells us which side of lenderId/borrowerId is the
-    // authenticated account (ownerId) vs. the selected contact (contactId) —
-    // see create-lent-debt / create-borrowed-debt controllers.
-    const ownerId = command.role === 'LENT' ? props.lenderId : props.borrowerId;
-    const contactId =
-      command.role === 'LENT' ? props.borrowerId : props.lenderId;
     const role = command.role === 'LENT' ? 'LENDER' : 'BORROWER';
 
     await this.prisma.$transaction([

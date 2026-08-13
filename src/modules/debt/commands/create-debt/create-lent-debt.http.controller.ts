@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   HttpStatus,
+  NotFoundException,
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { AggregateID } from '@libs/ddd';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
+import { ContactNotFoundError } from '@modules/contact/domain/contact.errors';
 import { InsufficientSavingsError } from '../../domain/debt.errors';
 import { CreateDebtCommand } from './create-debt.command';
 import { CreateLentDebtRequestDto } from './create-lent-debt.request.dto';
@@ -28,6 +30,7 @@ export class CreateLentDebtHttpController {
   })
   @ApiResponse({ status: HttpStatus.CREATED, type: IdResponse })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, type: ApiErrorResponse })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
   @ApiResponse({
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     type: ApiErrorResponse,
@@ -47,13 +50,17 @@ export class CreateLentDebtHttpController {
       cashAmount: body.cashAmount,
     });
 
-    const result: Result<AggregateID, InsufficientSavingsError> =
-      await this.commandBus.execute(command);
+    const result: Result<
+      AggregateID,
+      InsufficientSavingsError | ContactNotFoundError
+    > = await this.commandBus.execute(command);
     return match(result, {
       Ok: (id: string) => new IdResponse(id),
       Err: (error) => {
         if (error instanceof InsufficientSavingsError)
           throw new UnprocessableEntityException(error.message);
+        if (error instanceof ContactNotFoundError)
+          throw new NotFoundException(error.message);
         throw error;
       },
     });

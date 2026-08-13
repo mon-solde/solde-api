@@ -51,10 +51,7 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
   }
 
   private get totalRepaidCents(): number {
-    return this.props.repayments.reduce(
-      (sum, r) => sum + toCents(r.amount),
-      0,
-    );
+    return this.props.repayments.reduce((sum, r) => sum + toCents(r.amount), 0);
   }
 
   get totalRepaid(): number {

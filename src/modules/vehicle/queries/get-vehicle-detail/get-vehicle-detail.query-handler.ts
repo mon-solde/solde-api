@@ -1,6 +1,7 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-import { Ok, Result } from 'oxide.ts';
+import { Err, Ok, Result } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
+import { VehicleAccessDeniedError } from '@modules/vehicle/domain/vehicle.errors';
 import {
   buildProfitShareBeneficiaries,
   computeInvestedByResponsibleParty,
@@ -10,9 +11,11 @@ import {
 
 export class GetVehicleDetailQuery {
   readonly vehicleId: string;
+  readonly requesterId: string;
 
   constructor(props: GetVehicleDetailQuery) {
     this.vehicleId = props.vehicleId;
+    this.requesterId = props.requesterId;
   }
 }
 
@@ -138,7 +141,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
 
   async execute(
     query: GetVehicleDetailQuery,
-  ): Promise<Result<VehicleDetail | null, never>> {
+  ): Promise<Result<VehicleDetail | null, VehicleAccessDeniedError>> {
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: query.vehicleId },
       include: {
@@ -194,6 +197,9 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     });
 
     if (!vehicle) return Ok(null);
+    if (vehicle.ownerId !== query.requesterId) {
+      return Err(new VehicleAccessDeniedError());
+    }
 
     const expenses: ExpenseDetail[] = vehicle.expenses.map((e) => ({
       id: e.id,

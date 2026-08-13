@@ -3,9 +3,11 @@ import { Ok, Result } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
 
 export class FindVehiclesQuery {
+  readonly ownerId: string;
   readonly status?: 'ACTIVE' | 'SOLD';
 
   constructor(props: FindVehiclesQuery) {
+    this.ownerId = props.ownerId;
     this.status = props.status;
   }
 }
@@ -34,12 +36,14 @@ export class FindVehiclesQueryHandler implements IQueryHandler {
   async execute(
     query: FindVehiclesQuery,
   ): Promise<Result<VehicleListItem[], never>> {
-    const where =
-      query.status === 'ACTIVE'
+    const where = {
+      ownerId: query.ownerId,
+      ...(query.status === 'ACTIVE'
         ? { soldVehicle: { is: null } }
         : query.status === 'SOLD'
         ? { soldVehicle: { isNot: null } }
-        : undefined;
+        : {}),
+    };
 
     const vehicles = await this.prisma.vehicle.findMany({
       where,

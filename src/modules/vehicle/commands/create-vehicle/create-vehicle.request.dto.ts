@@ -26,13 +26,6 @@ export class CreateVehicleParticipantDto {
 }
 
 export class CreateVehicleRequestDto {
-  // TODO: derive from the authenticated account once auth is wired up on
-  // this endpoint — for now it's an explicit field in the request body.
-  @ApiProperty({ example: 'firebase-uid-123', description: 'Owner account ID' })
-  @IsString()
-  @IsNotEmpty()
-  readonly ownerId: string;
-
   @ApiProperty({ example: 'Audi A5 2018' })
   @IsString()
   @IsNotEmpty()

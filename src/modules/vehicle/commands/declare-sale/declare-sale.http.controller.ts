@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   HttpStatus,
   NotFoundException,
   Param,
@@ -14,8 +15,10 @@ import { routesV1 } from '@config/app.routes';
 import { IdResponse } from '@libs/api/id.response.dto';
 import { AggregateID } from '@libs/ddd';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
-import { Public } from '@modules/auth/public.decorator';
+import { CurrentUser } from '@modules/auth/current-user.decorator';
+import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
 import {
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleCashierNotParticipantError,
   VehicleNotFoundError,
@@ -24,7 +27,6 @@ import {
 import { DeclareSaleCommand } from './declare-sale.command';
 import { DeclareSaleRequestDto } from './declare-sale.request.dto';
 
-@Public()
 @Controller(routesV1.version)
 export class DeclareSaleHttpController {
   constructor(private readonly commandBus: CommandBus) {}
@@ -32,17 +34,20 @@ export class DeclareSaleHttpController {
   @ApiOperation({ summary: 'Declare a vehicle as sold' })
   @ApiResponse({ status: HttpStatus.CREATED, type: IdResponse })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, type: ApiErrorResponse })
   @ApiResponse({
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     type: ApiErrorResponse,
   })
   @Post(routesV1.vehicle.sale)
   async declare(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('vehicleId') vehicleId: string,
     @Body() body: DeclareSaleRequestDto,
   ): Promise<IdResponse> {
     const command = new DeclareSaleCommand({
       vehicleId,
+      requesterId: user.id,
       salePrice: body.salePrice,
       soldAt: new Date(body.soldAt),
       cashierId: body.cashierId,
@@ -53,6 +58,7 @@ export class DeclareSaleHttpController {
     const result: Result<
       AggregateID,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | VehicleCashierNotParticipantError
       | VehicleSaleReimbursementRequiresOwnerError
@@ -63,6 +69,8 @@ export class DeclareSaleHttpController {
       Err: (error) => {
         if (error instanceof VehicleNotFoundError)
           throw new NotFoundException(error.message);
+        if (error instanceof VehicleAccessDeniedError)
+          throw new ForbiddenException(error.message);
         if (
           error instanceof VehicleAlreadySoldError ||
           error instanceof VehicleCashierNotParticipantError ||

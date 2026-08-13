@@ -10,6 +10,7 @@ export interface ExpensePayerProps {
 
 export class AddExpenseCommand extends Command {
   readonly vehicleId: string;
+  readonly requesterId: string;
   readonly label: string;
   readonly date: Date;
   readonly payers: ExpensePayerProps[];
@@ -17,6 +18,7 @@ export class AddExpenseCommand extends Command {
   constructor(props: CommandProps<AddExpenseCommand>) {
     super(props);
     this.vehicleId = props.vehicleId;
+    this.requesterId = props.requesterId;
     this.label = props.label;
     this.date = props.date;
     this.payers = props.payers;

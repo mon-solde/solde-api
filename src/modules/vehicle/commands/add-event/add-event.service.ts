@@ -4,7 +4,10 @@ import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
-import { VehicleNotFoundError } from '@modules/vehicle/domain/vehicle.errors';
+import {
+  VehicleAccessDeniedError,
+  VehicleNotFoundError,
+} from '@modules/vehicle/domain/vehicle.errors';
 import { AddEventCommand } from './add-event.command';
 
 @CommandHandler(AddEventCommand)
@@ -16,9 +19,13 @@ export class AddEventService implements ICommandHandler {
 
   async execute(
     command: AddEventCommand,
-  ): Promise<Result<string, VehicleNotFoundError>> {
+  ): Promise<Result<string, VehicleNotFoundError | VehicleAccessDeniedError>> {
     const found = await this.vehicleRepo.findOneById(command.vehicleId);
     if (found.isNone()) return Err(new VehicleNotFoundError());
+
+    const vehicle = found.unwrap();
+    if (!vehicle.isOwner(command.requesterId))
+      return Err(new VehicleAccessDeniedError());
 
     const eventId = randomUUID();
     await this.vehicleRepo.insertVehicleEvent({

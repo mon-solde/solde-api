@@ -4,6 +4,7 @@ import { ExpensePayerProps } from '../add-expense/add-expense.command';
 export class UpdateExpenseCommand extends Command {
   readonly vehicleId: string;
   readonly expenseId: string;
+  readonly requesterId: string;
   readonly label: string;
   readonly date: Date;
   readonly payers: ExpensePayerProps[];
@@ -12,6 +13,7 @@ export class UpdateExpenseCommand extends Command {
     super(props);
     this.vehicleId = props.vehicleId;
     this.expenseId = props.expenseId;
+    this.requesterId = props.requesterId;
     this.label = props.label;
     this.date = props.date;
     this.payers = props.payers;

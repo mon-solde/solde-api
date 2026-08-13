@@ -12,12 +12,12 @@ import { routesV1 } from '@config/app.routes';
 import { IdResponse } from '@libs/api/id.response.dto';
 import { AggregateID } from '@libs/ddd';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
-import { Public } from '@modules/auth/public.decorator';
+import { CurrentUser } from '@modules/auth/current-user.decorator';
+import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
 import { VehicleProfitShareSumError } from '@modules/vehicle/domain/vehicle.errors';
 import { CreateVehicleCommand } from './create-vehicle.command';
 import { CreateVehicleRequestDto } from './create-vehicle.request.dto';
 
-@Public()
 @Controller(routesV1.version)
 export class CreateVehicleHttpController {
   constructor(private readonly commandBus: CommandBus) {}
@@ -30,9 +30,13 @@ export class CreateVehicleHttpController {
     type: ApiErrorResponse,
   })
   @Post(routesV1.vehicle.root)
-  async create(@Body() body: CreateVehicleRequestDto): Promise<IdResponse> {
+  async create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: CreateVehicleRequestDto,
+  ): Promise<IdResponse> {
     const command = new CreateVehicleCommand({
       ...body,
+      ownerId: user.id,
       purchaseDate: new Date(body.purchaseDate),
     });
 

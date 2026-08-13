@@ -16,6 +16,14 @@ export class VehicleNotFoundError extends ExceptionBase {
   }
 }
 
+export class VehicleAccessDeniedError extends ExceptionBase {
+  static readonly message = 'Access to this vehicle is denied';
+  public readonly code = 'VEHICLE.ACCESS_DENIED';
+  constructor(cause?: Error, metadata?: unknown) {
+    super(VehicleAccessDeniedError.message, cause, metadata);
+  }
+}
+
 export class VehicleAlreadySoldError extends ExceptionBase {
   static readonly message = 'Vehicle is already sold';
   public readonly code = 'VEHICLE.ALREADY_SOLD';

@@ -8,6 +8,7 @@ import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
   ExpenseImputationRequiresOwnerError,
   ExpenseSourceRequiredForOwnerError,
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
@@ -27,6 +28,7 @@ export class AddExpenseService implements ICommandHandler {
     Result<
       string,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | ExpenseImputationRequiresOwnerError
       | ExpenseSourceRequiredForOwnerError
@@ -36,6 +38,8 @@ export class AddExpenseService implements ICommandHandler {
     if (found.isNone()) return Err(new VehicleNotFoundError());
 
     const vehicle = found.unwrap();
+    if (!vehicle.isOwner(command.requesterId))
+      return Err(new VehicleAccessDeniedError());
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
 
     const ownerPayerMissingSource = command.payers.find(

@@ -2,6 +2,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
   NotFoundException,
@@ -14,19 +15,20 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { match, Result } from 'oxide.ts';
 import { routesV1 } from '@config/app.routes';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
-import { Public } from '@modules/auth/public.decorator';
+import { CurrentUser } from '@modules/auth/current-user.decorator';
+import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
 import {
   ExpenseHasRepaymentsError,
   ExpenseImputationRequiresOwnerError,
   ExpenseNotFoundError,
   ExpenseSourceRequiredForOwnerError,
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
 import { UpdateExpenseCommand } from './update-expense.command';
 import { UpdateExpenseRequestDto } from './update-expense.request.dto';
 
-@Public()
 @Controller(routesV1.version)
 export class UpdateExpenseHttpController {
   constructor(private readonly commandBus: CommandBus) {}
@@ -34,6 +36,7 @@ export class UpdateExpenseHttpController {
   @ApiOperation({ summary: 'Update an expense' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, type: ApiErrorResponse })
   @ApiResponse({
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     type: ApiErrorResponse,
@@ -41,6 +44,7 @@ export class UpdateExpenseHttpController {
   @Put(routesV1.vehicle.expenseById)
   @HttpCode(HttpStatus.NO_CONTENT)
   async update(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('vehicleId') vehicleId: string,
     @Param('expenseId') expenseId: string,
     @Body() body: UpdateExpenseRequestDto,
@@ -48,6 +52,7 @@ export class UpdateExpenseHttpController {
     const command = new UpdateExpenseCommand({
       vehicleId,
       expenseId,
+      requesterId: user.id,
       label: body.label,
       date: new Date(body.date),
       payers: body.payers,
@@ -56,6 +61,7 @@ export class UpdateExpenseHttpController {
     const result: Result<
       void,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | ExpenseNotFoundError
       | ExpenseHasRepaymentsError
@@ -71,6 +77,8 @@ export class UpdateExpenseHttpController {
           error instanceof ExpenseNotFoundError
         )
           throw new NotFoundException(error.message);
+        if (error instanceof VehicleAccessDeniedError)
+          throw new ForbiddenException(error.message);
         if (
           error instanceof VehicleAlreadySoldError ||
           error instanceof ExpenseImputationRequiresOwnerError ||

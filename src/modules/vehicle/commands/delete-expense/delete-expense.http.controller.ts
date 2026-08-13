@@ -2,6 +2,7 @@ import {
   ConflictException,
   Controller,
   Delete,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
   NotFoundException,
@@ -13,16 +14,17 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { match, Result } from 'oxide.ts';
 import { routesV1 } from '@config/app.routes';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
-import { Public } from '@modules/auth/public.decorator';
+import { CurrentUser } from '@modules/auth/current-user.decorator';
+import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
 import {
   ExpenseHasRepaymentsError,
   ExpenseNotFoundError,
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
 import { DeleteExpenseCommand } from './delete-expense.command';
 
-@Public()
 @Controller(routesV1.version)
 export class DeleteExpenseHttpController {
   constructor(private readonly commandBus: CommandBus) {}
@@ -30,6 +32,7 @@ export class DeleteExpenseHttpController {
   @ApiOperation({ summary: 'Delete an expense' })
   @ApiResponse({ status: HttpStatus.NO_CONTENT })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, type: ApiErrorResponse })
   @ApiResponse({
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     type: ApiErrorResponse,
@@ -37,14 +40,20 @@ export class DeleteExpenseHttpController {
   @Delete(routesV1.vehicle.expenseById)
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('vehicleId') vehicleId: string,
     @Param('expenseId') expenseId: string,
   ): Promise<void> {
-    const command = new DeleteExpenseCommand({ vehicleId, expenseId });
+    const command = new DeleteExpenseCommand({
+      vehicleId,
+      expenseId,
+      requesterId: user.id,
+    });
 
     const result: Result<
       void,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | ExpenseNotFoundError
       | ExpenseHasRepaymentsError
@@ -58,6 +67,8 @@ export class DeleteExpenseHttpController {
           error instanceof ExpenseNotFoundError
         )
           throw new NotFoundException(error.message);
+        if (error instanceof VehicleAccessDeniedError)
+          throw new ForbiddenException(error.message);
         if (error instanceof VehicleAlreadySoldError)
           throw new UnprocessableEntityException(error.message);
         if (error instanceof ExpenseHasRepaymentsError)

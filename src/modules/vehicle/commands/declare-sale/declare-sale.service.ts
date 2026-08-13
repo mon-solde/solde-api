@@ -7,6 +7,7 @@ import { PrismaService } from '@libs/db/prisma.service';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleCashierNotParticipantError,
   VehicleNotFoundError,
@@ -34,6 +35,7 @@ export class DeclareSaleService implements ICommandHandler {
     Result<
       AggregateID,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | VehicleCashierNotParticipantError
       | VehicleSaleReimbursementRequiresOwnerError
@@ -43,6 +45,8 @@ export class DeclareSaleService implements ICommandHandler {
     if (found.isNone()) return Err(new VehicleNotFoundError());
 
     const vehicle = found.unwrap();
+    if (!vehicle.isOwner(command.requesterId))
+      return Err(new VehicleAccessDeniedError());
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
     const cashierIsOwner = vehicle.isOwner(command.cashierId);
     if (!cashierIsOwner && !vehicle.isParticipant(command.cashierId))

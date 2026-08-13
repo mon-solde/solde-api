@@ -6,6 +6,7 @@ import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
   ExpenseHasRepaymentsError,
   ExpenseNotFoundError,
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
@@ -24,6 +25,7 @@ export class DeleteExpenseService implements ICommandHandler {
     Result<
       void,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | ExpenseNotFoundError
       | ExpenseHasRepaymentsError
@@ -33,6 +35,8 @@ export class DeleteExpenseService implements ICommandHandler {
     if (found.isNone()) return Err(new VehicleNotFoundError());
 
     const vehicle = found.unwrap();
+    if (!vehicle.isOwner(command.requesterId))
+      return Err(new VehicleAccessDeniedError());
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
 
     const expenseDebts = await this.vehicleRepo.findExpenseDebts(

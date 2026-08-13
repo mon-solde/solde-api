@@ -4,6 +4,7 @@ import { Err, Ok, Result } from 'oxide.ts';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
+  VehicleAccessDeniedError,
   VehicleAlreadySoldError,
   VehicleNotFoundError,
   VehicleParticipantMismatchError,
@@ -24,6 +25,7 @@ export class UpdateVehicleParticipantsService implements ICommandHandler {
     Result<
       void,
       | VehicleNotFoundError
+      | VehicleAccessDeniedError
       | VehicleAlreadySoldError
       | VehicleParticipantMismatchError
       | VehicleProfitShareSumError
@@ -33,6 +35,8 @@ export class UpdateVehicleParticipantsService implements ICommandHandler {
     if (found.isNone()) return Err(new VehicleNotFoundError());
 
     const vehicle = found.unwrap();
+    if (!vehicle.isOwner(command.requesterId))
+      return Err(new VehicleAccessDeniedError());
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
 
     // This endpoint only updates existing shares — it can't add or remove a

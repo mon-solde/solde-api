@@ -9,3 +9,13 @@ export class UserAlreadyExistsError extends ExceptionBase {
     super(UserAlreadyExistsError.message, cause, metadata);
   }
 }
+
+export class UserAccessDeniedError extends ExceptionBase {
+  static readonly message = 'You can only delete your own account';
+
+  public readonly code = 'USER.ACCESS_DENIED';
+
+  constructor(cause?: Error, metadata?: unknown) {
+    super(UserAccessDeniedError.message, cause, metadata);
+  }
+}

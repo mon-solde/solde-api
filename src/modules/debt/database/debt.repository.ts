@@ -36,7 +36,11 @@ export type SoldVehicleDebtRecord = {
 export type ExpenseDebtRecord = {
   debtId: string;
   expenseId: string;
-  expense: { label: string };
+  expense: {
+    label: string;
+    vehicleId: string;
+    vehicle?: { name: string } | null;
+  };
 };
 
 export type DebtModel = {
@@ -75,7 +79,13 @@ const include = {
   },
   expenseDebt: {
     include: {
-      expense: { select: { label: true } },
+      expense: {
+        select: {
+          label: true,
+          vehicleId: true,
+          vehicle: { select: { name: true } },
+        },
+      },
     },
   },
 } as const;

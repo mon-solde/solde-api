@@ -83,6 +83,8 @@ export class DebtMapper
           // context — the debt itself carries no free-text field, but the
           // expense it comes from always has a label.
           description: record.expenseDebt?.expense.label,
+          vehicleId: record.expenseDebt?.expense.vehicleId,
+          vehicleName: record.expenseDebt?.expense.vehicle?.name ?? undefined,
           repayments: (record.repayments ?? []).map((r) => ({
             id: r.id,
             amount: Number(r.amount),

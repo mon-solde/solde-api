@@ -127,9 +127,18 @@ export class DebtRepository
         ...(filters?.role ? { role: filters.role } : {}),
         ...(filters?.vehicleId
           ? {
-              soldVehicleDebt: {
-                soldVehicle: { vehicleId: filters.vehicleId },
-              },
+              OR: [
+                {
+                  soldVehicleDebt: {
+                    soldVehicle: { vehicleId: filters.vehicleId },
+                  },
+                },
+                {
+                  expenseDebt: {
+                    expense: { vehicleId: filters.vehicleId },
+                  },
+                },
+              ],
             }
           : {}),
       },

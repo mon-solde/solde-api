@@ -1,4 +1,15 @@
-# taxi-vroom-api
+# Solde — API
+
+Backend of **Solde**, a personal finance management app: monthly budgeting, debt tracking between people, savings, and shared vehicle ownership expenses.
+
+The frontend lives in [`solde-admin`](https://github.com/Voit-admin/voit-admin).
+
+## Tech stack
+
+- **Framework**: [NestJS](https://nestjs.com/) with a DDD/CQRS architecture (commands, queries, aggregates, domain events)
+- **Database**: PostgreSQL via [Prisma](https://www.prisma.io/)
+- **Auth**: Firebase Authentication (JWT verification on every protected route)
+- **Language**: TypeScript
 
 ## Prerequisites
 

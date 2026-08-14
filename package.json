@@ -1,7 +1,7 @@
 {
-  "name": "taxi-vroom",
+  "name": "solde-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "API backend de Solde — gestion financière personnelle (budget, dettes, épargne, véhicules en copropriété).",
   "author": "",
   "private": true,
   "license": "UNLICENSED",

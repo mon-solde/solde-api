@@ -82,6 +82,7 @@ export class FindDebtsQueryHandler implements IQueryHandler {
       const allMatching = await this.debtRepo.findAllMatching(
         query.userId,
         filters,
+        query.orderBy,
       );
       const filtered = allMatching.filter((debt) =>
         query.status === 'REPAID' ? debt.isRepaid : !debt.isRepaid,
@@ -103,8 +104,9 @@ export class FindDebtsQueryHandler implements IQueryHandler {
         orderBy: query.orderBy,
       }),
       // Totals must reflect every matching debt, not just the current page,
-      // so this is a second load regardless of the paginated query above.
-      this.debtRepo.findAllMatching(query.userId, filters),
+      // so this is a second load regardless of the paginated query above —
+      // order doesn't matter for a sum, but the signature requires one.
+      this.debtRepo.findAllMatching(query.userId, filters, query.orderBy),
     ]);
 
     return Ok({

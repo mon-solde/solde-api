@@ -183,11 +183,12 @@ export class DebtRepository
   async findAllMatching(
     userId: string,
     filters: DebtFilters,
+    orderBy: OrderBy,
   ): Promise<DebtEntity[]> {
     const results = await this.client.debt.findMany({
       where: this.buildWhere(userId, filters),
       include,
-      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      orderBy: this.buildOrderBy(orderBy),
     });
     return results.map((r) => this.mapper.toDomain(r as any));
   }

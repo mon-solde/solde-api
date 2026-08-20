@@ -5,10 +5,9 @@ import { Result } from 'oxide.ts';
 import { routesV1 } from '@config/app.routes';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
-import { DebtEntity } from '../../domain/debt.entity';
 import { DebtMapper } from '../../debt.mapper';
-import { DebtResponseDto } from '../../dtos/debt.response.dto';
-import { FindDebtsQuery } from './find-debts.query-handler';
+import { DebtPaginatedResponseDto } from '../../dtos/debt.paginated.response.dto';
+import { FindDebtsQuery, FindDebtsResult } from './find-debts.query-handler';
 import { FindDebtsRequestDto } from './find-debts.request.dto';
 
 @Controller(routesV1.version)
@@ -22,26 +21,39 @@ export class FindDebtsHttpController {
 
   @Get(routesV1.debt.root)
   @ApiOperation({ summary: 'Find all debts for the authenticated user' })
-  @ApiResponse({ status: HttpStatus.OK, type: [DebtResponseDto] })
+  @ApiResponse({ status: HttpStatus.OK, type: DebtPaginatedResponseDto })
   async findDebts(
     @CurrentUser() user: AuthenticatedUser,
     @Query() queryParams: FindDebtsRequestDto,
-  ): Promise<DebtResponseDto[]> {
+  ): Promise<DebtPaginatedResponseDto> {
     this.logger.log(`GET /v1/debts — userId: ${user.id}`);
 
-    const result: Result<DebtEntity[], never> = await this.queryBus.execute(
+    const result: Result<FindDebtsResult, never> = await this.queryBus.execute(
       new FindDebtsQuery({
         userId: user.id,
         contactId: queryParams.contactId,
         role: queryParams.role,
         status: queryParams.status,
         vehicleId: queryParams.vehicleId,
+        limit: queryParams.limit,
+        page: queryParams.page,
+        orderBy: queryParams.sortBy
+          ? { field: queryParams.sortBy, param: queryParams.sortOrder }
+          : undefined,
       }),
     );
 
-    const debts = result.unwrap();
-    this.logger.log(`GET /v1/debts — ${debts.length} dette(s) retournée(s)`);
+    const { data, count, limit, page, totals } = result.unwrap();
+    this.logger.log(
+      `GET /v1/debts — ${data.length}/${count} dette(s) returned`,
+    );
 
-    return debts.map((debt) => this.mapper.toResponse(debt));
+    return new DebtPaginatedResponseDto({
+      data: data.map((debt) => this.mapper.toResponse(debt)),
+      count,
+      limit,
+      page,
+      totals,
+    });
   }
 }

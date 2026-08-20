@@ -47,3 +47,11 @@ export interface CreateSoldVehicleDebtProps {
   date: Date;
   vehicleId: string;
 }
+
+export interface DebtTotals {
+  lentRemaining: number;
+  borrowedRemaining: number;
+  net: number;
+  lentCount: number;
+  borrowedCount: number;
+}

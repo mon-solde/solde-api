@@ -1,10 +1,13 @@
-import { RepositoryPort } from '@libs/ddd';
+import { Paginated, PaginatedQueryParams, RepositoryPort } from '@libs/ddd';
 import { Option } from 'oxide.ts';
 import { MonthlyBudgetEntity } from '../domain/monthly-budget.entity';
 
 export interface MonthlyBudgetRepositoryPort
   extends RepositoryPort<MonthlyBudgetEntity> {
-  findAllByUserId(userId: string): Promise<MonthlyBudgetEntity[]>;
+  findAllByUserId(
+    userId: string,
+    pagination: PaginatedQueryParams,
+  ): Promise<Paginated<MonthlyBudgetEntity>>;
   findByYearMonth(
     userId: string,
     year: number,

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@libs/db/prisma.service';
 import { PrismaRepositoryBase } from '@libs/db/prisma-repository.base';
+import { OrderBy, Paginated, PaginatedQueryParams } from '@libs/ddd';
 import { Some, None, Option } from 'oxide.ts';
 import { MonthlyBudgetEntity } from '../domain/monthly-budget.entity';
 import { MonthlyBudgetMapper } from '../monthly-budget.mapper';
@@ -61,13 +62,42 @@ export class MonthlyBudgetRepository
     return result ? Some(this.mapper.toDomain(result)) : None;
   }
 
-  async findAllByUserId(userId: string): Promise<MonthlyBudgetEntity[]> {
-    const results = await this.client.monthlyBudget.findMany({
-      where: { userId },
-      include,
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  async findAllByUserId(
+    userId: string,
+    pagination: PaginatedQueryParams,
+  ): Promise<Paginated<MonthlyBudgetEntity>> {
+    const where = { userId };
+    const [results, count] = await Promise.all([
+      this.client.monthlyBudget.findMany({
+        where,
+        include,
+        orderBy: this.buildOrderBy(pagination.orderBy),
+        take: pagination.limit,
+        skip: pagination.offset,
+      }),
+      this.client.monthlyBudget.count({ where }),
+    ]);
+    return new Paginated({
+      data: results.map((r) => this.mapper.toDomain(r)),
+      count,
+      limit: pagination.limit,
+      page: pagination.page,
     });
-    return results.map((r) => this.mapper.toDomain(r));
+  }
+
+  // 'month' sorts by year then month together (both in the same direction),
+  // which is what makes it chronological rather than two independent sorts.
+  private buildOrderBy(orderBy: OrderBy) {
+    switch (orderBy.field) {
+      case 'receivedSalary':
+        return [
+          { receivedSalary: orderBy.param },
+          { year: 'desc' as const },
+          { month: 'desc' as const },
+        ];
+      default:
+        return [{ year: orderBy.param }, { month: orderBy.param }];
+    }
   }
 
   async findByYearMonth(

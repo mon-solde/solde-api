@@ -3,10 +3,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@libs/db/prisma.service';
 import { PrismaRepositoryBase } from '@libs/db/prisma-repository.base';
+import { OrderBy, Paginated, PaginatedQueryParams } from '@libs/ddd';
 import { Some, None, Option } from 'oxide.ts';
 import { RecurringChargeEntity } from '../domain/recurring-charge.entity';
 import { RecurringChargeMapper } from '../recurring-charge.mapper';
-import { RecurringChargeRepositoryPort } from './recurring-charge.repository.port';
+import {
+  RecurringChargeFilters,
+  RecurringChargeRepositoryPort,
+} from './recurring-charge.repository.port';
 
 export type RecurringChargeVersionModel = {
   id: string;
@@ -69,6 +73,98 @@ export class RecurringChargeRepository
       orderBy: { createdAt: 'desc' },
     });
     return results.map((r) => this.mapper.toDomain(r));
+  }
+
+  // name/amount/type/dueDay live on the current RecurringChargeHistory
+  // version, not on RecurringCharge itself, so Prisma can't sort/filter the
+  // parent by them directly. Resolved in two native queries instead of an
+  // in-memory sort: first find each charge's current version id (Prisma's
+  // documented distinct+orderBy pattern for "latest row per group" — see
+  // https://www.prisma.io/docs/orm/prisma-client/queries/aggregation-grouping-summarizing#get-distinct-field-values),
+  // then query RecurringChargeHistory directly by that id set, where
+  // name/amount/type/dueDay are plain columns Prisma can sort/filter/
+  // paginate on normally.
+  async findPageByUserId(
+    userId: string,
+    filters: RecurringChargeFilters,
+    pagination: PaginatedQueryParams,
+  ): Promise<Paginated<RecurringChargeEntity>> {
+    const currentVersions = await this.client.recurringChargeHistory.findMany({
+      where: {
+        recurringCharge: {
+          userId,
+          ...(filters.status === 'ACTIVE'
+            ? { inactiveAt: null }
+            : filters.status === 'INACTIVE'
+            ? { inactiveAt: { not: null } }
+            : {}),
+        },
+      },
+      distinct: ['recurringChargeId'],
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+
+    const historyWhere = {
+      id: { in: currentVersions.map((v) => v.id) },
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.search
+        ? { name: { contains: filters.search, mode: 'insensitive' as const } }
+        : {}),
+    };
+
+    const [histories, count] = await Promise.all([
+      this.client.recurringChargeHistory.findMany({
+        where: historyWhere,
+        include: { recurringCharge: true },
+        orderBy: this.buildOrderBy(pagination.orderBy),
+        take: pagination.limit,
+        skip: pagination.offset,
+      }),
+      this.client.recurringChargeHistory.count({ where: historyWhere }),
+    ]);
+
+    // recurringCharge is only nullable in Prisma's generated type because
+    // the FK itself is nullable (orphaned versions of a deleted charge) —
+    // historyWhere's id set only ever contains versions resolved via a
+    // `recurringCharge: {...}` filter above, so it's always present here.
+    const data = histories.map((h) => {
+      const charge = h.recurringCharge;
+      if (!charge) {
+        throw new Error(`RecurringChargeHistory ${h.id} has no parent charge`);
+      }
+      return this.mapper.toDomain({
+        id: charge.id,
+        createdAt: charge.createdAt,
+        updatedAt: charge.updatedAt,
+        userId: charge.userId,
+        inactiveAt: charge.inactiveAt,
+        history: [h],
+      });
+    });
+
+    return new Paginated({
+      data,
+      count,
+      limit: pagination.limit,
+      page: pagination.page,
+    });
+  }
+
+  private buildOrderBy(orderBy: OrderBy) {
+    switch (orderBy.field) {
+      case 'amount':
+        return [{ amount: orderBy.param }, { name: 'asc' as const }];
+      case 'dueDay':
+        return [
+          { dueDay: { sort: orderBy.param, nulls: 'last' as const } },
+          { name: 'asc' as const },
+        ];
+      case 'type':
+        return [{ type: orderBy.param }, { name: 'asc' as const }];
+      default:
+        return [{ name: orderBy.param }];
+    }
   }
 
   // Overrides the generic mapper-driven insert() — creating a charge also

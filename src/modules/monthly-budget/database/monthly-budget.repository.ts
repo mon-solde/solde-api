@@ -106,13 +106,28 @@ export class MonthlyBudgetRepository
     await entity.publishEvents(this.logger, this.eventEmitter);
   }
 
-  // recurringCharges are frozen at insert() time and never touched again —
-  // save() only ever needs to persist receivedSalary.
+  // recurringCharges set at insert() time are otherwise never touched
+  // through save() — the only way to add one afterwards is the explicit
+  // addRecurringCharge() below — so save() only ever needs to persist
+  // receivedSalary.
   async save(entity: MonthlyBudgetEntity): Promise<void> {
     const p = entity.getProps();
     await this.client.monthlyBudget.update({
       where: { id: entity.id },
       data: { receivedSalary: p.receivedSalary },
+    });
+  }
+
+  async addRecurringCharge(
+    budgetId: string,
+    charge: { id: string; recurringChargeHistoryId: string },
+  ): Promise<void> {
+    await this.client.monthlyRecurringCharge.create({
+      data: {
+        id: charge.id,
+        budgetId,
+        recurringChargeHistoryId: charge.recurringChargeHistoryId,
+      },
     });
   }
 }

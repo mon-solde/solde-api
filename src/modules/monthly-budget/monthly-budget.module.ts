@@ -12,6 +12,8 @@ import { UpdateSalaryHttpController } from './commands/update-salary/update-sala
 import { UpdateSalaryService } from './commands/update-salary/update-salary.service';
 import { AddSavingsWithdrawalHttpController } from './commands/add-savings-withdrawal/add-savings-withdrawal.http.controller';
 import { AddSavingsWithdrawalService } from './commands/add-savings-withdrawal/add-savings-withdrawal.service';
+import { AddRecurringChargeHttpController } from './commands/add-recurring-charge/add-recurring-charge.http.controller';
+import { AddRecurringChargeService } from './commands/add-recurring-charge/add-recurring-charge.service';
 import { FindMonthlyBudgetsHttpController } from './queries/find-monthly-budgets/find-monthly-budgets.http.controller';
 import { FindMonthlyBudgetsQueryHandler } from './queries/find-monthly-budgets/find-monthly-budgets.query-handler';
 import { FindMonthlyBudgetHttpController } from './queries/find-monthly-budget/find-monthly-budget.http.controller';
@@ -22,6 +24,7 @@ const httpControllers = [
   DeleteMonthlyBudgetHttpController,
   UpdateSalaryHttpController,
   AddSavingsWithdrawalHttpController,
+  AddRecurringChargeHttpController,
   FindMonthlyBudgetsHttpController,
   FindMonthlyBudgetHttpController,
 ];
@@ -31,6 +34,7 @@ const commandHandlers: Provider[] = [
   DeleteMonthlyBudgetService,
   UpdateSalaryService,
   AddSavingsWithdrawalService,
+  AddRecurringChargeService,
 ];
 
 const queryHandlers: Provider[] = [

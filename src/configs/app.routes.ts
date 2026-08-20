@@ -58,6 +58,7 @@ export const routesV1 = {
     byYearMonth: 'monthly-budgets/:year/:month',
     salary: 'monthly-budgets/:id/salary',
     savingsWithdrawals: 'monthly-budgets/:id/savings-withdrawals',
+    recurringCharges: 'monthly-budgets/:id/recurring-charges',
   },
   savings: {
     root: savingsRoot,

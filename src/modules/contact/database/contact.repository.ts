@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Some, None, Option } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
 import { PrismaRepositoryBase } from '@libs/db/prisma-repository.base';
+import { OrderBy, Paginated, PaginatedQueryParams } from '@libs/ddd';
 import {
   PostgresErrorCode,
   PrismaErrorCode,
@@ -10,7 +11,10 @@ import {
 import { ConflictException } from '@libs/exceptions';
 import { ContactEntity } from '../domain/contact.entity';
 import { ContactMapper } from '../contact.mapper';
-import { ContactRepositoryPort } from './contact.repository.port';
+import {
+  ContactFilters,
+  ContactRepositoryPort,
+} from './contact.repository.port';
 
 export type ContactModel = {
   userId: string;
@@ -74,13 +78,67 @@ export class ContactRepository
     return result ? Some(this.mapper.toDomain(result)) : None;
   }
 
-  async findAllByOwnerId(ownerId: string): Promise<ContactEntity[]> {
-    const results = await this.client.contact.findMany({
-      where: { ownerId, ...notDeleted },
-      include,
-      orderBy: { user: { firstName: 'asc' } },
+  async findAllByOwnerId(
+    ownerId: string,
+    filters: ContactFilters,
+    pagination: PaginatedQueryParams,
+  ): Promise<Paginated<ContactEntity>> {
+    const where = {
+      ownerId,
+      ...notDeleted,
+      ...(filters.search
+        ? {
+            OR: [
+              {
+                user: {
+                  firstName: {
+                    contains: filters.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
+              {
+                user: {
+                  lastName: {
+                    contains: filters.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [results, count] = await Promise.all([
+      this.client.contact.findMany({
+        where,
+        include,
+        orderBy: this.buildOrderBy(pagination.orderBy),
+        take: pagination.limit,
+        skip: pagination.offset,
+      }),
+      this.client.contact.count({ where }),
+    ]);
+
+    return new Paginated({
+      data: results.map((r) => this.mapper.toDomain(r)),
+      count,
+      limit: pagination.limit,
+      page: pagination.page,
     });
-    return results.map((r) => this.mapper.toDomain(r));
+  }
+
+  private buildOrderBy(orderBy: OrderBy) {
+    switch (orderBy.field) {
+      case 'createdAt':
+        return [{ createdAt: orderBy.param }];
+      default:
+        return [
+          { user: { firstName: orderBy.param } },
+          { user: { lastName: orderBy.param } },
+        ];
+    }
   }
 
   // Used to check for duplicate names at contact creation — has to see

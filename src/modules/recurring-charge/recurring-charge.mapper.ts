@@ -32,7 +32,7 @@ export class RecurringChargeMapper
       props: {
         userId: record.userId,
         name: version.name,
-        amount: Number(version.amount),
+        amount: version.amount,
         type: version.type,
         dueDay: version.dueDay ?? undefined,
         inactiveAt: record.inactiveAt ?? undefined,

@@ -31,13 +31,14 @@ export class MonthlyBudgetMapper
         userId: record.userId,
         year: record.year,
         month: record.month,
-        receivedSalary: Number(record.receivedSalary),
+        receivedSalary: record.receivedSalary,
         recurringCharges: (record.recurringCharges ?? []).map((c) => ({
           id: c.id,
           recurringChargeHistoryId: c.recurringChargeHistoryId,
-          recurringChargeId: c.recurringChargeHistory.recurringChargeId ?? undefined,
+          recurringChargeId:
+            c.recurringChargeHistory.recurringChargeId ?? undefined,
           label: c.recurringChargeHistory.name,
-          amount: Number(c.recurringChargeHistory.amount),
+          amount: c.recurringChargeHistory.amount,
           type: c.recurringChargeHistory.type,
           dueDay: c.recurringChargeHistory.dueDay ?? undefined,
         })),

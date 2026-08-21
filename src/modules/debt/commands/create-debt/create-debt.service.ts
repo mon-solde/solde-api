@@ -3,6 +3,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { AggregateID } from '@libs/ddd';
 import { PrismaService } from '@libs/db/prisma.service';
+import { eur } from '@libs/money/money';
 import { SavingsEngine } from '@modules/savings/savings-engine.service';
 import { CONTACT_REPOSITORY } from '@modules/contact/contact.di-tokens';
 import { ContactRepositoryPort } from '@modules/contact/database/contact.repository.port';
@@ -56,8 +57,7 @@ export class CreateDebtService implements ICommandHandler {
     const bankAmount = command.bankAmount ?? 0;
     const cashAmount = command.cashAmount ?? 0;
 
-    const epsilon = 0.001;
-    if (Math.abs(bankAmount + cashAmount - command.amount) > epsilon) {
+    if (!eur(bankAmount).add(eur(cashAmount)).equalsTo(eur(command.amount))) {
       throw new BadRequestException(
         `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au montant total (${command.amount})`,
       );

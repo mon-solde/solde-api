@@ -211,7 +211,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         payerId: p.payerId,
         firstName: p.payer.firstName,
         lastName: p.payer.lastName,
-        amount: Number(p.amount),
+        amount: p.amount,
         source: p.source ?? null,
         imputedToId: p.imputedToId ?? null,
         imputedToFirstName: p.imputedTo?.firstName ?? null,
@@ -230,7 +230,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     // reintroduce the same order-dependent floating point risk sumAmounts
     // exists to avoid.
     const totalExpenses = sumAmounts(vehicle.expenses.flatMap((e) => e.payers));
-    const purchasePrice = Number(vehicle.purchasePrice);
+    const purchasePrice = vehicle.purchasePrice;
 
     const investedByUser = computeInvestedByResponsibleParty(
       vehicle.expenses.flatMap((e) => e.payers),
@@ -240,7 +240,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     let cashierId: string | null = null;
 
     if (vehicle.soldVehicle) {
-      const salePrice = Number(vehicle.soldVehicle.salePrice);
+      const salePrice = vehicle.soldVehicle.salePrice;
       // totalExpenses already includes the purchase expense, so no need to subtract purchasePrice separately
       profit = salePrice - totalExpenses;
       cashierId = vehicle.soldVehicle.cashierId;
@@ -280,11 +280,8 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
 
     const soldVehicleDebts = vehicle.soldVehicle?.soldVehicleDebts ?? [];
     const reversements: ReversementDetail[] = soldVehicleDebts.map((vd) => {
-      const amountDue = Number(vd.debt.amount);
-      const amountPaid = vd.debt.repayments.reduce(
-        (s, r) => s + Number(r.amount),
-        0,
-      );
+      const amountDue = vd.debt.amount;
+      const amountPaid = vd.debt.repayments.reduce((s, r) => s + r.amount, 0);
       const remaining = Math.max(0, amountDue - amountPaid);
       // The recipient (who is owed) is the owner when role=LENDER, the
       // contact when role=BORROWER.
@@ -304,7 +301,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         isSettled: remaining === 0,
         repayments: vd.debt.repayments.map((r) => ({
           id: r.id,
-          amount: Number(r.amount),
+          amount: r.amount,
           date: r.date,
           note: r.note,
         })),
@@ -329,7 +326,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
       events,
       soldVehicle: vehicle.soldVehicle
         ? {
-            salePrice: Number(vehicle.soldVehicle.salePrice),
+            salePrice: vehicle.soldVehicle.salePrice,
             soldAt: vehicle.soldVehicle.soldAt,
             cashierId: vehicle.soldVehicle.cashierId,
           }

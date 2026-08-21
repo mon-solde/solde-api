@@ -6,12 +6,12 @@ import type { PendingSoldVehicleDebt } from './seed-vehicle-sale';
 import {
   addDays,
   createRng,
-  dec,
   daysAgo,
   pick,
   randomAmount,
   randomInt,
   splitAmount,
+  toCents,
   type Rng,
 } from './utils';
 
@@ -57,7 +57,7 @@ export async function seedDebts(
         ownerId: pending.ownerId,
         contactId: pending.contactId,
         role: pending.role,
-        amount: dec(pending.amount),
+        amount: toCents(pending.amount),
         date: pending.date,
         type: 'EXPENSE',
         expenseDebt: { create: { expenseId: pending.expenseId } },
@@ -81,7 +81,7 @@ export async function seedDebts(
         ownerId: pending.ownerId,
         contactId: pending.contactId,
         role: pending.role,
-        amount: dec(pending.amount),
+        amount: toCents(pending.amount),
         date: pending.date,
         type: 'SOLD_VEHICLE',
         soldVehicleDebt: { create: { soldVehicleId: pending.soldVehicleId } },
@@ -123,7 +123,7 @@ async function seedManualDebts(
         ownerId,
         contactId: contact.id,
         role,
-        amount: dec(amount),
+        amount: toCents(amount),
         date,
         type: 'MANUAL',
         manualDebt: {
@@ -151,12 +151,12 @@ function pickStatus(rng: Rng): DebtStatus {
 function splitBankCash(
   rng: Rng,
   amount: number,
-): { bankAmount?: string; cashAmount?: string } {
+): { bankAmount?: number; cashAmount?: number } {
   const roll = rng();
-  if (roll < 0.6) return { bankAmount: dec(amount) };
-  if (roll < 0.85) return { cashAmount: dec(amount) };
+  if (roll < 0.6) return { bankAmount: toCents(amount) };
+  if (roll < 0.85) return { cashAmount: toCents(amount) };
   const [bankAmount, cashAmount] = splitAmount(amount, 2);
-  return { bankAmount: dec(bankAmount), cashAmount: dec(cashAmount) };
+  return { bankAmount: toCents(bankAmount), cashAmount: toCents(cashAmount) };
 }
 
 async function addRepayments(
@@ -185,7 +185,7 @@ async function addRepayments(
       data: {
         id: randomUUID(),
         debtId,
-        amount: dec(part),
+        amount: toCents(part),
         date: repaymentDate,
         source: pick(rng, ['BANK', 'CASH']),
         note: rng() < 0.15 ? 'Remboursé en plusieurs fois' : undefined,

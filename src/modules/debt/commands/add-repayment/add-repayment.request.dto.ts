@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsNumber,
+  IsInt,
   IsDateString,
   IsOptional,
   IsString,
@@ -15,9 +15,9 @@ export enum RepaymentSourceDto {
 }
 
 export class AddRepaymentRequestDto {
-  @ApiProperty({ example: 50 })
-  @IsNumber()
-  @Min(0.01)
+  @ApiProperty({ example: 5000, description: 'Amount in cents' })
+  @IsInt()
+  @Min(1)
   readonly amount: number;
 
   @ApiProperty({ example: '2024-02-01' })
@@ -35,11 +35,12 @@ export class AddRepaymentRequestDto {
 
   @ApiProperty({
     required: false,
-    example: 30,
-    description: 'Montant banque — requis uniquement si source = BOTH',
+    example: 3000,
+    description:
+      'Montant banque, en centimes — requis uniquement si source = BOTH',
   })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   readonly bankSplitAmount?: number;
 }

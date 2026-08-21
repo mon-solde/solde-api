@@ -17,7 +17,7 @@ export class VehicleResponseDto extends ResponseBase {
   @ApiProperty({ example: '2024-01-15T00:00:00.000Z' })
   purchaseDate: string;
 
-  @ApiProperty({ example: 8500 })
+  @ApiProperty({ example: 850000, description: 'Amount in cents' })
   purchasePrice: number;
 
   @ApiProperty({ example: 'ACTIVE', enum: VehicleStatus })

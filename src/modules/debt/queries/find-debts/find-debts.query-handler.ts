@@ -32,32 +32,25 @@ export type FindDebtsResult = {
   totals: DebtTotals;
 };
 
-// Mirrors DebtEntity's own cents conversion: `remaining` is already a
-// rounded 2-decimal value, but summing several of them back in floating
-// point can reintroduce the same drift that toCents() exists to avoid.
-function toCents(amount: number): number {
-  return Math.round(amount * 100);
-}
-
 function computeTotals(
   userId: string,
   debts: readonly DebtEntity[],
 ): DebtTotals {
   const lent = debts.filter((debt) => debt.getProps().lenderId === userId);
   const borrowed = debts.filter((debt) => debt.getProps().lenderId !== userId);
-  const lentRemainingCents = sumRemainingCents(lent);
-  const borrowedRemainingCents = sumRemainingCents(borrowed);
+  const lentRemaining = sumRemaining(lent);
+  const borrowedRemaining = sumRemaining(borrowed);
   return {
-    lentRemaining: lentRemainingCents / 100,
-    borrowedRemaining: borrowedRemainingCents / 100,
-    net: (lentRemainingCents - borrowedRemainingCents) / 100,
+    lentRemaining,
+    borrowedRemaining,
+    net: lentRemaining - borrowedRemaining,
     lentCount: lent.length,
     borrowedCount: borrowed.length,
   };
 }
 
-function sumRemainingCents(debts: readonly DebtEntity[]): number {
-  return debts.reduce((sum, debt) => sum + toCents(debt.remaining), 0);
+function sumRemaining(debts: readonly DebtEntity[]): number {
+  return debts.reduce((sum, debt) => sum + debt.remaining, 0);
 }
 
 @QueryHandler(FindDebtsQuery)

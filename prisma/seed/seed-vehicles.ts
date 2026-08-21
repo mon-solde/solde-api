@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import type { SeededContact } from './seed-contacts';
-import { dec, monthsAgo } from './utils';
+import { dec, monthsAgo, toCents } from './utils';
 
 export type SeededVehicleParticipant = {
   contactId: string;
@@ -63,7 +63,7 @@ export async function seedVehicles(
         ownerId,
         name: vehicle.name,
         purchaseDate: vehicle.purchaseDate,
-        purchasePrice: dec(vehicle.purchasePrice),
+        purchasePrice: toCents(vehicle.purchasePrice),
         participants: {
           create: vehicle.participants.map((p) => ({
             contactId: p.contactId,

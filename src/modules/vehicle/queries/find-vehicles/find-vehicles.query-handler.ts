@@ -3,6 +3,7 @@ import { Ok, Result } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
 import { OrderBy, Paginated } from '@libs/ddd';
 import { PaginatedParams, PaginatedQueryBase } from '@libs/ddd/query.base';
+import { sumAmounts } from '@modules/vehicle/domain/profit-sharing';
 
 export class FindVehiclesQuery extends PaginatedQueryBase {
   readonly ownerId: string;
@@ -21,7 +22,7 @@ export type VehicleListItem = {
   id: string;
   name: string;
   purchaseDate: Date;
-  purchasePrice: any;
+  purchasePrice: number;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -88,10 +89,7 @@ export class FindVehiclesQueryHandler implements IQueryHandler {
     ]);
 
     const data: VehicleListItem[] = vehicles.map((v) => {
-      const totalExpenses = v.expenses.reduce(
-        (sum, e) => sum + e.payers.reduce((s, p) => s + Number(p.amount), 0),
-        0,
-      );
+      const totalExpenses = sumAmounts(v.expenses.flatMap((e) => e.payers));
       const status = v.soldVehicle ? 'SOLD' : 'ACTIVE';
       return {
         id: v.id,

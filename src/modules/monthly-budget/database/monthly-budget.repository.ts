@@ -13,7 +13,7 @@ export type MonthlyBudgetModel = {
   userId: string;
   year: number;
   month: number;
-  receivedSalary: unknown;
+  receivedSalary: number;
   createdAt: Date;
   updatedAt: Date;
   recurringCharges?: {
@@ -23,7 +23,7 @@ export type MonthlyBudgetModel = {
     recurringChargeHistory: {
       recurringChargeId: string | null;
       name: string;
-      amount: unknown;
+      amount: number;
       type: 'AUTOMATIC' | 'MANUAL';
       dueDay: number | null;
     };

@@ -4,11 +4,15 @@ import { DebtTotals } from '../domain/debt.types';
 import { DebtResponseDto } from './debt.response.dto';
 
 export class DebtTotalsResponseDto implements DebtTotals {
-  @ApiProperty({ description: 'Sum of remaining amounts still owed to you' })
+  @ApiProperty({
+    description: 'Sum of remaining amounts still owed to you, in cents',
+  })
   lentRemaining: number;
-  @ApiProperty({ description: 'Sum of remaining amounts you still owe' })
+  @ApiProperty({
+    description: 'Sum of remaining amounts you still owe, in cents',
+  })
   borrowedRemaining: number;
-  @ApiProperty({ description: 'lentRemaining - borrowedRemaining' })
+  @ApiProperty({ description: 'lentRemaining - borrowedRemaining, in cents' })
   net: number;
   @ApiProperty() lentCount: number;
   @ApiProperty() borrowedCount: number;

@@ -49,7 +49,7 @@ export class DebtMapper
           borrowerId,
           lenderName: lenderName || undefined,
           borrowerName: borrowerName || undefined,
-          amount: Number(record.amount),
+          amount: record.amount,
           date: new Date(record.date),
           type: DebtType.SOLD_VEHICLE,
           vehicleId: record.soldVehicleDebt?.soldVehicle.vehicleId,
@@ -57,7 +57,7 @@ export class DebtMapper
             record.soldVehicleDebt?.soldVehicle.vehicle?.name ?? undefined,
           repayments: (record.repayments ?? []).map((r) => ({
             id: r.id,
-            amount: Number(r.amount),
+            amount: r.amount,
             date: new Date(r.date),
             note: r.note ?? undefined,
             source: r.source as 'BANK' | 'CASH',
@@ -76,7 +76,7 @@ export class DebtMapper
           borrowerId,
           lenderName: lenderName || undefined,
           borrowerName: borrowerName || undefined,
-          amount: Number(record.amount),
+          amount: record.amount,
           date: new Date(record.date),
           type: DebtType.EXPENSE,
           // Surfaced as the debt's "note" so it isn't left with no visible
@@ -87,7 +87,7 @@ export class DebtMapper
           vehicleName: record.expenseDebt?.expense.vehicle?.name ?? undefined,
           repayments: (record.repayments ?? []).map((r) => ({
             id: r.id,
-            amount: Number(r.amount),
+            amount: r.amount,
             date: new Date(r.date),
             note: r.note ?? undefined,
             source: r.source as 'BANK' | 'CASH',
@@ -105,19 +105,15 @@ export class DebtMapper
         borrowerId,
         lenderName: lenderName || undefined,
         borrowerName: borrowerName || undefined,
-        amount: Number(record.amount),
+        amount: record.amount,
         date: new Date(record.date),
         type: DebtType.MANUAL,
         description: record.manualDebt?.description ?? undefined,
-        bankAmount: record.manualDebt?.bankAmount
-          ? Number(record.manualDebt.bankAmount)
-          : undefined,
-        cashAmount: record.manualDebt?.cashAmount
-          ? Number(record.manualDebt.cashAmount)
-          : undefined,
+        bankAmount: record.manualDebt?.bankAmount ?? undefined,
+        cashAmount: record.manualDebt?.cashAmount ?? undefined,
         repayments: (record.repayments ?? []).map((r) => ({
           id: r.id,
-          amount: Number(r.amount),
+          amount: r.amount,
           date: new Date(r.date),
           note: r.note ?? undefined,
           source: r.source as 'BANK' | 'CASH',

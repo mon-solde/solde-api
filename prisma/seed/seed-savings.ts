@@ -3,11 +3,11 @@ import type { PrismaClient } from '../../src/generated/prisma/client';
 import {
   addDays,
   createRng,
-  dec,
   monthsAgo,
   pick,
   randomAmount,
   randomInt,
+  toCents,
 } from './utils';
 
 const EVENT_COUNT = 28;
@@ -59,7 +59,7 @@ export async function seedSavings(
         userId,
         kind,
         source: pick(rng, ['BANK', 'CASH']),
-        amount: dec(amount),
+        amount: toCents(amount),
         label,
         date,
       },

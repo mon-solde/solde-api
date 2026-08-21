@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDateString,
   IsIn,
-  IsNumber,
+  IsInt,
   IsPositive,
   IsString,
   MaxLength,
@@ -17,8 +17,8 @@ export class CreateManualSavingsEventRequestDto {
   @IsIn(['BANK', 'CASH'])
   source: 'BANK' | 'CASH';
 
-  @ApiProperty()
-  @IsNumber()
+  @ApiProperty({ example: 5000, description: 'Amount in cents' })
+  @IsInt()
   @IsPositive()
   amount: number;
 

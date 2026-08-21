@@ -32,7 +32,7 @@ export class ManualSavingsEventMapper
       userId: record.userId,
       kind: record.kind as SavingsMovementKind,
       source: record.source as SavingsSource,
-      amount: Number(record.amount),
+      amount: record.amount,
       label: record.label,
       date: new Date(record.date),
     };

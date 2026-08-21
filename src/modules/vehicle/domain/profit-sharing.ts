@@ -1,3 +1,5 @@
+import { eur, toCents, type Money } from '@libs/money/money';
+
 export interface ProfitShareBeneficiary {
   id: string;
   profitShare: number;
@@ -6,25 +8,15 @@ export interface ProfitShareBeneficiary {
 export interface ExpensePaymentRecord {
   payerId: string;
   imputedToId: string | null;
-  amount: unknown; // Prisma Decimal
+  amount: number;
 }
 
-// Summing many small decimal amounts in floating point can land on a
-// different bit-level result depending on iteration order — Prisma doesn't
-// guarantee row order without an explicit orderBy, so the exact same set of
-// payments can sum to a value a fraction of a cent apart between two call
-// sites. That's invisible almost always, except when the true result sits
-// exactly on a rounding boundary (e.g. X.XX5), where it flips the displayed
-// cent one way in one place and the other way elsewhere. Converting to
-// integer cents first avoids the whole class of bug: integer addition is
-// exact and order-independent.
-function toCents(amount: unknown): number {
-  return Math.round(Number(amount) * 100);
-}
-
-export function sumAmounts(payments: { amount: unknown }[]): number {
-  const totalCents = payments.reduce((sum, p) => sum + toCents(p.amount), 0);
-  return totalCents / 100;
+export function sumAmounts(payments: { amount: number }[]): number {
+  const total = payments.reduce<Money>(
+    (sum, p) => sum.add(eur(p.amount)),
+    eur(0),
+  );
+  return toCents(total);
 }
 
 // Money someone paid but delegated to someone else isn't really their own
@@ -34,16 +26,14 @@ export function sumAmounts(payments: { amount: unknown }[]): number {
 export function computeInvestedByResponsibleParty(
   payments: ExpensePaymentRecord[],
 ): Map<string, number> {
-  const investedCentsByUser = new Map<string, number>();
+  const investedByUser = new Map<string, Money>();
   for (const payment of payments) {
     const responsibleId = payment.imputedToId ?? payment.payerId;
-    investedCentsByUser.set(
-      responsibleId,
-      (investedCentsByUser.get(responsibleId) ?? 0) + toCents(payment.amount),
-    );
+    const current = investedByUser.get(responsibleId) ?? eur(0);
+    investedByUser.set(responsibleId, current.add(eur(payment.amount)));
   }
   return new Map(
-    [...investedCentsByUser].map(([id, cents]) => [id, cents / 100]),
+    [...investedByUser].map(([id, money]) => [id, toCents(money)]),
   );
 }
 
@@ -54,9 +44,9 @@ export function buildProfitShareBeneficiaries(
   ownerId: string,
   participants: ProfitShareBeneficiary[],
 ): ProfitShareBeneficiary[] {
-  // Sorted so the same beneficiary always absorbs a deficit's rounding
-  // remainder (see computeProfitShares) regardless of the order Prisma
-  // happens to return participant rows in.
+  // Sorted so the same beneficiary always absorbs a rounding remainder (see
+  // computeProfitShares) regardless of the order Prisma happens to return
+  // participant rows in.
   const sortedParticipants = [...participants].sort((a, b) =>
     a.id.localeCompare(b.id),
   );
@@ -75,32 +65,31 @@ export function buildProfitShareBeneficiaries(
 // more of the car someone owns, the more of the gain they get. A deficit is
 // split equally instead: an unexpected loss isn't scaled by ownership,
 // everyone bears the same amount regardless of profitShare or what they
-// personally invested.
+// personally invested. Either way, rounding each share to the nearest cent
+// independently can leave the shares a cent or two short of (or over) the
+// total — the last beneficiary (by the same sorted order as
+// buildProfitShareBeneficiaries, so the choice is deterministic) absorbs
+// that remainder so shares always sum back to the exact amount.
 export function computeProfitShares(
   profit: number,
   beneficiaries: ProfitShareBeneficiary[],
 ): Map<string, number> {
-  if (profit >= 0) {
-    return new Map(
-      beneficiaries.map((b) => [b.id, (profit * b.profitShare) / 100]),
-    );
-  }
+  if (beneficiaries.length === 0) return new Map();
 
-  const deficit = -profit;
-  const rawShare = deficit / beneficiaries.length;
-  const roundedShare = Math.round(rawShare * 100) / 100;
-  // The equal split rarely divides into a round number of cents — the last
-  // beneficiary absorbs the few-cent remainder so shares still sum exactly
-  // to the deficit.
-  const roundingRemainder =
-    Math.round((deficit - roundedShare * beneficiaries.length) * 100) / 100;
+  const amount = Math.abs(profit);
+  const sign = profit >= 0 ? 1 : -1;
+  const rawShares =
+    profit >= 0
+      ? beneficiaries.map((b) => toCents(eur(amount).percentage(b.profitShare)))
+      : beneficiaries.map(() => Math.round(amount / beneficiaries.length));
+  const remainder = amount - rawShares.reduce((sum, cents) => sum + cents, 0);
 
   return new Map(
     beneficiaries.map((b, index) => [
       b.id,
-      -(index === beneficiaries.length - 1
-        ? roundedShare + roundingRemainder
-        : roundedShare),
+      sign *
+        (rawShares[index] +
+          (index === beneficiaries.length - 1 ? remainder : 0)),
     ]),
   );
 }

@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsString,
@@ -36,8 +37,8 @@ export class CreateVehicleRequestDto {
   @IsDateString()
   readonly purchaseDate: string;
 
-  @ApiProperty({ example: 8500 })
-  @IsNumber()
+  @ApiProperty({ example: 850000, description: 'Amount in cents' })
+  @IsInt()
   @Min(0)
   readonly purchasePrice: number;
 

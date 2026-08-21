@@ -1,13 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { RecurringChargeType } from '../../domain/recurring-charge.types';
 
 export class CreateRecurringChargeRequestDto {
@@ -15,9 +7,9 @@ export class CreateRecurringChargeRequestDto {
   @IsString()
   readonly name: string;
 
-  @ApiProperty({ example: 15.99 })
-  @IsNumber()
-  @Min(0.01)
+  @ApiProperty({ example: 1599, description: 'Amount in cents' })
+  @IsInt()
+  @Min(1)
   readonly amount: number;
 
   @ApiProperty({ enum: ['AUTOMATIC', 'MANUAL'] })

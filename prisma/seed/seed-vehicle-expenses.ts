@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import type { SeededVehicle } from './seed-vehicles';
-import { dec, monthsAgo, splitByShares } from './utils';
+import { monthsAgo, splitByShares, toCents } from './utils';
 
 // A payment that was fronted by one side and delegated to the other — the
 // real add-expense flow turns this into an EXPENSE-type Debt. Collected
@@ -58,7 +58,7 @@ export async function seedVehicleExpenses(
           create: payers.map((p) => ({
             id: randomUUID(),
             payerId: p.payerId,
-            amount: dec(p.amount),
+            amount: toCents(p.amount),
             source: p.payerId === ownerId ? p.source : undefined,
             imputedToId: p.imputedToId,
           })),

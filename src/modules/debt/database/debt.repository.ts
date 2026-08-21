@@ -11,7 +11,7 @@ import { DebtRepositoryPort, DebtFilters } from './debt.repository.port';
 export type RepaymentModel = {
   id: string;
   debtId: string;
-  amount: any;
+  amount: number;
   date: Date;
   note: string | null;
   source: string;
@@ -24,8 +24,8 @@ export type UserInfo = { firstName: string; lastName: string };
 export type ManualDebtRecord = {
   debtId: string;
   description: string | null;
-  bankAmount: any | null;
-  cashAmount: any | null;
+  bankAmount: number | null;
+  cashAmount: number | null;
 };
 
 export type SoldVehicleDebtRecord = {
@@ -49,7 +49,7 @@ export type DebtModel = {
   ownerId: string;
   contactId: string;
   role: 'LENDER' | 'BORROWER';
-  amount: any;
+  amount: number;
   date: Date;
   type: string;
   createdAt: Date;

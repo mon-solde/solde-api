@@ -12,7 +12,7 @@ export type ManualSavingsEventModel = {
   userId: string;
   kind: string;
   source: string;
-  amount: unknown;
+  amount: number;
   label: string;
   date: Date;
   createdAt: Date;

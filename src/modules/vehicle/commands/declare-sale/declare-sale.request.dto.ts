@@ -1,16 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Min,
 } from 'class-validator';
 
 export class DeclareSaleRequestDto {
-  @ApiProperty({ example: 12000 })
-  @IsNumber()
+  @ApiProperty({ example: 1200000, description: 'Amount in cents' })
+  @IsInt()
   @Min(0)
   readonly salePrice: number;
 
@@ -25,15 +25,15 @@ export class DeclareSaleRequestDto {
 
   // Only meaningful (and required) when cashierId is the account owner —
   // see declare-sale.service.ts for the rule that enforces this.
-  @ApiPropertyOptional({ example: 8000 })
+  @ApiPropertyOptional({ example: 800000, description: 'Amount in cents' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   readonly bankAmount?: number;
 
-  @ApiPropertyOptional({ example: 4000 })
+  @ApiPropertyOptional({ example: 400000, description: 'Amount in cents' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   readonly cashAmount?: number;
 }

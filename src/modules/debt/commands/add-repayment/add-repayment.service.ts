@@ -43,8 +43,7 @@ export class AddRepaymentService implements ICommandHandler {
     if (command.source === 'BOTH') {
       const bankSplitAmount = command.bankSplitAmount ?? 0;
       const cashAmount = command.amount - bankSplitAmount;
-      const epsilon = 0.001;
-      if (bankSplitAmount <= 0 || bankSplitAmount >= command.amount - epsilon) {
+      if (bankSplitAmount <= 0 || bankSplitAmount >= command.amount) {
         throw new BadRequestException(
           'bankSplitAmount doit être compris entre 0 et le montant total.',
         );

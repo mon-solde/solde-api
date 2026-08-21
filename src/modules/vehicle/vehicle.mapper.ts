@@ -36,7 +36,7 @@ export class VehicleMapper
         ownerId: record.ownerId,
         name: record.name,
         purchaseDate: new Date(record.purchaseDate),
-        purchasePrice: Number(record.purchasePrice),
+        purchasePrice: record.purchasePrice,
         participants: record.participants.map((p) => ({
           contactId: p.contactId,
           profitShare: Number(p.profitShare),
@@ -44,15 +44,11 @@ export class VehicleMapper
         soldVehicle: record.soldVehicle
           ? {
               id: record.soldVehicle.id,
-              salePrice: Number(record.soldVehicle.salePrice),
+              salePrice: record.soldVehicle.salePrice,
               soldAt: new Date(record.soldVehicle.soldAt),
               cashierId: record.soldVehicle.cashierId,
-              bankAmount: record.soldVehicle.bankAmount
-                ? Number(record.soldVehicle.bankAmount)
-                : undefined,
-              cashAmount: record.soldVehicle.cashAmount
-                ? Number(record.soldVehicle.cashAmount)
-                : undefined,
+              bankAmount: record.soldVehicle.bankAmount ?? undefined,
+              cashAmount: record.soldVehicle.cashAmount ?? undefined,
             }
           : undefined,
       },

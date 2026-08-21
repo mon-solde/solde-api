@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { PrismaClient } from '../../src/generated/prisma/client';
-import { dec, monthsAgo } from './utils';
+import { monthsAgo, toCents } from './utils';
 
 export type SeededChargeVersion = {
   id: string;
@@ -138,7 +138,7 @@ export async function seedRecurringCharges(
           create: {
             id: firstVersion.id,
             name: firstVersion.name,
-            amount: dec(firstVersion.amount),
+            amount: toCents(firstVersion.amount),
             type: firstVersion.type,
             dueDay: firstVersion.dueDay,
             createdAt: firstVersion.createdAt,
@@ -153,7 +153,7 @@ export async function seedRecurringCharges(
           id: version.id,
           recurringChargeId: charge.id,
           name: version.name,
-          amount: dec(version.amount),
+          amount: toCents(version.amount),
           type: version.type,
           dueDay: version.dueDay,
           createdAt: version.createdAt,

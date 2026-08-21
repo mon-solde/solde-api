@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
-  IsNumber,
+  IsInt,
   IsDateString,
   IsOptional,
   Min,
@@ -12,9 +12,9 @@ export class CreateLentDebtRequestDto {
   @IsString()
   readonly borrowerId: string;
 
-  @ApiProperty({ example: 150.5 })
-  @IsNumber()
-  @Min(0.01)
+  @ApiProperty({ example: 15050, description: 'Amount in cents' })
+  @IsInt()
+  @Min(1)
   readonly amount: number;
 
   @ApiProperty({ example: '2024-01-15' })
@@ -27,18 +27,18 @@ export class CreateLentDebtRequestDto {
   readonly description?: string;
 
   @ApiProperty({
-    example: 100,
-    description: 'Montant prélevé depuis le compte bancaire',
+    example: 10000,
+    description: 'Montant prélevé depuis le compte bancaire, en centimes',
   })
-  @IsNumber()
+  @IsInt()
   @Min(0)
   readonly bankAmount: number;
 
   @ApiProperty({
-    example: 50.5,
-    description: 'Montant prélevé depuis les espèces',
+    example: 5050,
+    description: 'Montant prélevé depuis les espèces, en centimes',
   })
-  @IsNumber()
+  @IsInt()
   @Min(0)
   readonly cashAmount: number;
 }

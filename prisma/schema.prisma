@@ -93,7 +93,7 @@ model Vehicle {
   ownerId       String
   name          String
   purchaseDate  DateTime
-  purchasePrice Decimal
+  purchasePrice Int
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -109,15 +109,15 @@ model Vehicle {
 model SoldVehicle {
   id         String   @id
   vehicleId  String   @unique
-  salePrice  Decimal
+  salePrice  Int
   soldAt     DateTime
   cashierId  String
   /// Only meaningful when the cashier is the account owner — same reasoning
   /// as ExpensePayer.source. Split across both like ManualDebt.bankAmount/
   /// cashAmount, since a sale can genuinely be paid partly by transfer,
   /// partly in cash.
-  bankAmount Decimal?
-  cashAmount Decimal?
+  bankAmount Int?
+  cashAmount Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -182,7 +182,7 @@ model ExpensePayer {
   id          String         @id @default(uuid())
   expenseId   String
   payerId     String
-  amount      Decimal
+  amount      Int
   /// Only meaningful when the payer is the account owner — it tracks which
   /// of their own money pools (bank/cash) got debited. Null for a contact:
   /// their money never touches the owner's tracked balances.
@@ -217,7 +217,7 @@ model Debt {
   ownerId   String
   contactId String
   role      DebtRole
-  amount    Decimal
+  amount    Int
   date      DateTime
   type      DebtType
   createdAt DateTime @default(now())
@@ -240,8 +240,8 @@ model ManualDebt {
   debtId      String   @id
   description String?
   /// Only set when the authenticated user is the lender (tracks how the money was lent)
-  bankAmount  Decimal?
-  cashAmount  Decimal?
+  bankAmount  Int?
+  cashAmount  Int?
 
   debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
 
@@ -273,7 +273,7 @@ model ExpenseDebt {
 model Repayment {
   id        String        @id
   debtId    String
-  amount    Decimal
+  amount    Int
   date      DateTime
   note      String?
   source    SavingsSource
@@ -314,7 +314,7 @@ model RecurringCharge {
 model RecurringChargeHistory {
   id                String              @id
   name              String
-  amount            Decimal
+  amount            Int
   type              RecurringChargeType
   dueDay            Int?
   createdAt         DateTime            @default(now())
@@ -337,7 +337,7 @@ model MonthlyBudget {
   userId         String
   year           Int
   month          Int
-  receivedSalary Decimal
+  receivedSalary Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -367,7 +367,7 @@ model MonthlyRecurringCharge {
 model MonthlyBudgetSavingsWithdrawal {
   id        String        @id
   budgetId  String
-  amount    Decimal
+  amount    Int
   source    SavingsSource
   date      DateTime
   createdAt DateTime      @default(now())
@@ -395,7 +395,7 @@ model ManualSavingsEvent {
   userId    String
   kind      SavingsMovementKind
   source    SavingsSource
-  amount    Decimal
+  amount    Int
   label     String
   date      DateTime
   createdAt DateTime            @default(now())

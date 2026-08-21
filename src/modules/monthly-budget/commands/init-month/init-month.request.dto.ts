@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNumber, Max, Min } from 'class-validator';
+import { IsInt, Max, Min } from 'class-validator';
 
 export class InitMonthRequestDto {
   @ApiProperty({ example: 2026 })
@@ -12,8 +12,8 @@ export class InitMonthRequestDto {
   @Max(12)
   readonly month: number;
 
-  @ApiProperty({ example: 1384.17 })
-  @IsNumber()
+  @ApiProperty({ example: 138417, description: 'Amount in cents' })
+  @IsInt()
   @Min(0)
   readonly receivedSalary: number;
 }

@@ -1,5 +1,6 @@
 import { AggregateRoot, AggregateID } from '@libs/ddd';
 import { randomUUID } from 'crypto';
+import { eur, toCents } from '@libs/money/money';
 import {
   CreateManualDebtProps,
   CreateSoldVehicleDebtProps,
@@ -7,15 +8,6 @@ import {
   DebtType,
   RepaymentProps,
 } from './debt.types';
-
-// Summing repayment amounts in floating point can land a fraction of a
-// cent off the true value (e.g. 236.21 - 143.79 = 236.20999999999998 in
-// JS), which then fails a strict "amount > remaining" check for an amount
-// that should be exactly payable. Converting to integer cents first avoids
-// this: integer addition/subtraction is exact.
-function toCents(amount: number): number {
-  return Math.round(amount * 100);
-}
 
 export class DebtEntity extends AggregateRoot<DebtProps> {
   protected readonly _id: AggregateID;
@@ -50,21 +42,21 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
     return repayment;
   }
 
-  private get totalRepaidCents(): number {
-    return this.props.repayments.reduce((sum, r) => sum + toCents(r.amount), 0);
-  }
-
   get totalRepaid(): number {
-    return this.totalRepaidCents / 100;
+    const total = this.props.repayments.reduce(
+      (sum, r) => sum.add(eur(r.amount)),
+      eur(0),
+    );
+    return toCents(total);
   }
 
   get remaining(): number {
-    const remainingCents = toCents(this.props.amount) - this.totalRepaidCents;
-    return Math.max(0, remainingCents) / 100;
+    const remaining = eur(this.props.amount).subtract(eur(this.totalRepaid));
+    return Math.max(0, toCents(remaining));
   }
 
   get isRepaid(): boolean {
-    return this.totalRepaidCents >= toCents(this.props.amount);
+    return eur(this.totalRepaid).greaterThanOrEqual(eur(this.props.amount));
   }
 
   isOwnedBy(userId: string): boolean {

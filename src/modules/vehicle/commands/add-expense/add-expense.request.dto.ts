@@ -5,8 +5,8 @@ import {
   IsArray,
   IsDateString,
   IsIn,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -19,8 +19,8 @@ export class ExpensePayerDto {
   @IsNotEmpty()
   readonly payerId: string;
 
-  @ApiProperty({ example: 681.69 })
-  @IsNumber()
+  @ApiProperty({ example: 68169, description: 'Amount in cents' })
+  @IsInt()
   @Min(0)
   readonly amount: number;
 

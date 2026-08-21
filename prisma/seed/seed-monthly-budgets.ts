@@ -4,7 +4,7 @@ import type {
   SeededChargeVersion,
   SeededRecurringCharge,
 } from './seed-recurring-charges';
-import { createRng, dec, pick, randomAmount, randomInt } from './utils';
+import { createRng, pick, randomAmount, randomInt, toCents } from './utils';
 
 const MONTHS_OF_HISTORY = 15;
 
@@ -28,7 +28,7 @@ export async function seedMonthlyBudgets(
         userId,
         year,
         month,
-        receivedSalary: dec(receivedSalary),
+        receivedSalary: toCents(receivedSalary),
       },
     });
 
@@ -50,7 +50,7 @@ export async function seedMonthlyBudgets(
         data: {
           id: randomUUID(),
           budgetId,
-          amount: dec(randomAmount(rng, 80, 300)),
+          amount: toCents(randomAmount(rng, 80, 300)),
           source: pick(rng, ['BANK', 'CASH']),
           date: new Date(year, month - 1, randomInt(rng, 5, 25)),
         },

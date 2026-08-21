@@ -7,7 +7,7 @@ import {
   sumAmounts,
 } from '../../src/modules/vehicle/domain/profit-sharing';
 import type { SeededVehicle } from './seed-vehicles';
-import { dec, monthsAgo } from './utils';
+import { monthsAgo, toCents } from './utils';
 
 // A debt settling a sale payout between beneficiaries — the real
 // declare-sale flow creates these directly (see declare-sale.service.ts).
@@ -29,7 +29,7 @@ export async function seedVehicleSale(
   ownerId: string,
   clio: SeededVehicle,
 ): Promise<PendingSoldVehicleDebt[]> {
-  const salePrice = 8200;
+  const salePrice = toCents(8200);
   const soldAt = monthsAgo(3);
   const soldVehicleId = randomUUID();
 
@@ -39,11 +39,11 @@ export async function seedVehicleSale(
     data: {
       id: soldVehicleId,
       vehicleId: clio.id,
-      salePrice: dec(salePrice),
+      salePrice,
       soldAt,
       cashierId: ownerId,
-      bankAmount: dec(salePrice),
-      cashAmount: dec(0),
+      bankAmount: salePrice,
+      cashAmount: 0,
     },
   });
 
@@ -65,14 +65,13 @@ export async function seedVehicleSale(
   const investedByUser = computeInvestedByResponsibleParty(payments);
   const profitShareById = computeProfitShares(profit, beneficiaries);
 
-  const epsilon = 0.001;
   const pending: PendingSoldVehicleDebt[] = [];
 
   for (const beneficiary of nonCashierBeneficiaries) {
     const totalInvested = investedByUser.get(beneficiary.id) ?? 0;
     const profitShareAmount = profitShareById.get(beneficiary.id) ?? 0;
     const amountToReceive = totalInvested + profitShareAmount;
-    if (Math.abs(amountToReceive) <= epsilon) continue;
+    if (amountToReceive === 0) continue;
 
     pending.push({
       soldVehicleId,
@@ -81,7 +80,10 @@ export async function seedVehicleSale(
       // Cashier is the owner, so the owner naturally owes the payout
       // (BORROWER) unless this beneficiary's net position is negative.
       role: amountToReceive >= 0 ? 'BORROWER' : 'LENDER',
-      amount: Math.abs(amountToReceive),
+      // amountToReceive is in cents (computed from real, already-migrated
+      // ExpensePayer/SoldVehicle rows) — PendingSoldVehicleDebt.amount is in
+      // euros, like every other pending debt seedDebts() consumes.
+      amount: Math.abs(amountToReceive) / 100,
       date: soldAt,
     });
   }

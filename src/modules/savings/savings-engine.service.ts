@@ -249,8 +249,8 @@ export class SavingsEngine {
     for (const debt of lentDebts) {
       const name = debt.contact.user.firstName;
       const label = `Prêt à ${name}`;
-      const bankAmount = Number(debt.manualDebt?.bankAmount ?? 0);
-      const cashAmount = Number(debt.manualDebt?.cashAmount ?? 0);
+      const bankAmount = debt.manualDebt?.bankAmount ?? 0;
+      const cashAmount = debt.manualDebt?.cashAmount ?? 0;
       if (bankAmount > 0)
         items.push({
           id: `${debt.id}-bank`,
@@ -285,7 +285,7 @@ export class SavingsEngine {
         id: r.id,
         kind: 'ADDITION',
         source: r.source as SavingsSource,
-        amount: Number(r.amount),
+        amount: r.amount,
         label,
         note: r.note ?? undefined,
         date: r.date,
@@ -299,7 +299,7 @@ export class SavingsEngine {
         id: w.id,
         kind: 'ADDITION',
         source: w.source as SavingsSource,
-        amount: Number(w.amount),
+        amount: w.amount,
         label: `Épargne de ${FRENCH_MONTHS[w.budget.month - 1]} ${
           w.budget.year
         }`,
@@ -314,7 +314,7 @@ export class SavingsEngine {
         id: m.id,
         kind: m.kind as SavingsMovementKind,
         source: m.source as SavingsSource,
-        amount: Number(m.amount),
+        amount: m.amount,
         label: m.label,
         date: m.date,
         createdAt: m.createdAt,
@@ -329,7 +329,7 @@ export class SavingsEngine {
         }-${payer.expense.date.getTime()}`,
         kind: 'WITHDRAWAL',
         source: payer.source as SavingsSource,
-        amount: Number(payer.amount),
+        amount: payer.amount,
         label: `${payer.expense.label} — ${payer.expense.vehicle.name}`,
         date: payer.expense.date,
         createdAt: payer.expense.createdAt,
@@ -341,9 +341,9 @@ export class SavingsEngine {
       if (!vehicle.soldVehicle) continue;
 
       const label = `Vente de ${vehicle.name}`;
-      const bankAmount = Number(vehicle.soldVehicle.bankAmount ?? 0);
-      const cashAmount = Number(vehicle.soldVehicle.cashAmount ?? 0);
-      const salePrice = Number(vehicle.soldVehicle.salePrice);
+      const bankAmount = vehicle.soldVehicle.bankAmount ?? 0;
+      const cashAmount = vehicle.soldVehicle.cashAmount ?? 0;
+      const salePrice = vehicle.soldVehicle.salePrice;
 
       // The full sale proceeds aren't all the owner's — a co-owned vehicle's
       // sale still owes the other beneficiaries their share (settled via the

@@ -4,6 +4,7 @@ import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { AggregateID } from '@libs/ddd';
 import { PrismaService } from '@libs/db/prisma.service';
+import { eur } from '@libs/money/money';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
@@ -56,10 +57,9 @@ export class DeclareSaleService implements ICommandHandler {
     // balances — a contact cashing the sale never affects them.
     const bankAmount = cashierIsOwner ? command.bankAmount ?? 0 : 0;
     const cashAmount = cashierIsOwner ? command.cashAmount ?? 0 : 0;
-    const epsilon = 0.001;
     if (
       cashierIsOwner &&
-      Math.abs(bankAmount + cashAmount - command.salePrice) > epsilon
+      !eur(bankAmount).add(eur(cashAmount)).equalsTo(eur(command.salePrice))
     ) {
       throw new BadRequestException(
         `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au prix de vente (${command.salePrice})`,
@@ -130,7 +130,7 @@ export class DeclareSaleService implements ICommandHandler {
         const profitShareAmount = profitShareById.get(beneficiary.id) ?? 0;
         const amountToReceive = totalInvested + profitShareAmount;
 
-        if (Math.abs(amountToReceive) <= epsilon) continue;
+        if (amountToReceive === 0) continue;
 
         const debtId = randomUUID();
         await this.prisma.debt.create({

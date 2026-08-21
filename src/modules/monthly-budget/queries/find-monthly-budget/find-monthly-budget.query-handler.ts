@@ -14,7 +14,7 @@ export class FindMonthlyBudgetQuery {
 
 export type BudgetSavingsWithdrawalModel = {
   id: string;
-  amount: unknown;
+  amount: number;
   source: string;
   date: Date;
 };
@@ -24,14 +24,14 @@ export type BudgetDetailModel = {
   userId: string;
   year: number;
   month: number;
-  receivedSalary: unknown;
+  receivedSalary: number;
   createdAt: Date;
   updatedAt: Date;
   recurringCharges: {
     id: string;
     recurringChargeId: string | null;
     label: string;
-    amount: unknown;
+    amount: number;
     type: 'AUTOMATIC' | 'MANUAL';
     dueDay: number | null;
   }[];

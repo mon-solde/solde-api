@@ -23,11 +23,11 @@ export type VehicleParticipantRecord = {
 
 export type SoldVehicleRecord = {
   id: string;
-  salePrice: any; // Prisma Decimal
+  salePrice: number;
   soldAt: Date;
   cashierId: string;
-  bankAmount?: any | null; // Prisma Decimal
-  cashAmount?: any | null; // Prisma Decimal
+  bankAmount?: number | null;
+  cashAmount?: number | null;
 };
 
 export type VehicleModel = {
@@ -35,7 +35,7 @@ export type VehicleModel = {
   ownerId: string;
   name: string;
   purchaseDate: Date;
-  purchasePrice: any; // Prisma Decimal
+  purchasePrice: number;
   createdAt: Date;
   updatedAt: Date;
   participants: VehicleParticipantRecord[];

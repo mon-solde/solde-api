@@ -15,7 +15,7 @@ import {
 export type RecurringChargeVersionModel = {
   id: string;
   name: string;
-  amount: unknown; // Prisma Decimal
+  amount: number;
   type: 'AUTOMATIC' | 'MANUAL';
   dueDay: number | null;
 };

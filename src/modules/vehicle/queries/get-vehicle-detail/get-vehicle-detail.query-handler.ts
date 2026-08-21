@@ -79,9 +79,18 @@ export type ReversementRepayment = {
 
 export type ReversementDetail = {
   debtId: string;
-  recipientId: string;
-  recipientFirstName: string;
-  recipientLastName: string | null;
+  // Always the contact side of the debt — the owner is implicit (it's
+  // always "you"), exactly like the Dettes page's "Personne" column never
+  // shows your own name either.
+  contactId: string;
+  contactFirstName: string;
+  contactLastName: string | null;
+  // The owner's role on this debt — LENDER means you're owed, BORROWER
+  // means you owe. Same meaning as Dettes' Prêt/Emprunt badge.
+  direction: 'LENDER' | 'BORROWER';
+  // What this debt is actually about — the expense's label, or "Vente"
+  // for a sale settlement — since "who owes what" isn't obvious on its own.
+  origin: string;
   amountDue: number;
   amountPaid: number;
   remaining: number;
@@ -113,6 +122,63 @@ export type VehicleDetail = {
   financialSummary: FinancialSummary;
   reversements: ReversementDetail[];
 };
+
+// Shared by both reversement sources (sale settlement and delegated expense
+// payments) — same info needed either way. Only the contact side is
+// fetched: ownerId always refers to the vehicle's own owner (never shown,
+// exactly like Dettes never shows "Vous" either), so there's no need to
+// resolve owner info per-debt.
+const debtJoinInclude = {
+  include: {
+    contact: {
+      select: { user: { select: { firstName: true, lastName: true } } },
+    },
+    repayments: true,
+  },
+} as const;
+
+type DebtWithRepayments = {
+  debtId: string;
+  debt: {
+    amount: number;
+    role: string;
+    contactId: string;
+    contact: { user: { firstName: string; lastName: string | null } };
+    repayments: {
+      id: string;
+      amount: number;
+      date: Date;
+      note: string | null;
+    }[];
+  };
+};
+
+function toReversementDetail(
+  vd: DebtWithRepayments,
+  origin: string,
+): ReversementDetail {
+  const amountDue = vd.debt.amount;
+  const amountPaid = vd.debt.repayments.reduce((s, r) => s + r.amount, 0);
+  const remaining = Math.max(0, amountDue - amountPaid);
+  return {
+    debtId: vd.debtId,
+    contactId: vd.debt.contactId,
+    contactFirstName: vd.debt.contact.user.firstName,
+    contactLastName: vd.debt.contact.user.lastName,
+    direction: vd.debt.role as 'LENDER' | 'BORROWER',
+    origin,
+    amountDue,
+    amountPaid,
+    remaining,
+    isSettled: remaining === 0,
+    repayments: vd.debt.repayments.map((r) => ({
+      id: r.id,
+      amount: r.amount,
+      date: r.date,
+      note: r.note,
+    })),
+  };
+}
 
 // The owner is never a stored VehicleParticipant row (see VehicleEntity.ownerProfitShare)
 // — their share is always whatever the participants haven't claimed.
@@ -162,6 +228,11 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
                 imputedTo: { select: { firstName: true, lastName: true } },
               },
             },
+            // A delegated payment on an expense (someone fronts money for
+            // someone else) creates a Debt independently of whether the
+            // vehicle has been sold — these must show up in "Reversements"
+            // too, not just the sale settlement (see debtJoinInclude below).
+            expenseDebts: { include: { debt: debtJoinInclude } },
           },
           // `date` only carries day precision — createdAt breaks ties
           // between same-day expenses, most recent first, consistently.
@@ -172,25 +243,7 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
         },
         soldVehicle: {
           include: {
-            soldVehicleDebts: {
-              include: {
-                debt: {
-                  include: {
-                    owner: {
-                      select: {
-                        user: { select: { firstName: true, lastName: true } },
-                      },
-                    },
-                    contact: {
-                      select: {
-                        user: { select: { firstName: true, lastName: true } },
-                      },
-                    },
-                    repayments: true,
-                  },
-                },
-              },
-            },
+            soldVehicleDebts: { include: { debt: debtJoinInclude } },
           },
         },
       },
@@ -279,34 +332,12 @@ export class GetVehicleDetailQueryHandler implements IQueryHandler {
     );
 
     const soldVehicleDebts = vehicle.soldVehicle?.soldVehicleDebts ?? [];
-    const reversements: ReversementDetail[] = soldVehicleDebts.map((vd) => {
-      const amountDue = vd.debt.amount;
-      const amountPaid = vd.debt.repayments.reduce((s, r) => s + r.amount, 0);
-      const remaining = Math.max(0, amountDue - amountPaid);
-      // The recipient (who is owed) is the owner when role=LENDER, the
-      // contact when role=BORROWER.
-      const isOwnerLender = vd.debt.role === 'LENDER';
-      const recipientId = isOwnerLender ? vd.debt.ownerId : vd.debt.contactId;
-      const recipientInfo = isOwnerLender
-        ? vd.debt.owner.user
-        : vd.debt.contact.user;
-      return {
-        debtId: vd.debtId,
-        recipientId,
-        recipientFirstName: recipientInfo.firstName,
-        recipientLastName: recipientInfo.lastName,
-        amountDue,
-        amountPaid,
-        remaining,
-        isSettled: remaining === 0,
-        repayments: vd.debt.repayments.map((r) => ({
-          id: r.id,
-          amount: r.amount,
-          date: r.date,
-          note: r.note,
-        })),
-      };
-    });
+    const reversements: ReversementDetail[] = [
+      ...soldVehicleDebts.map((vd) => toReversementDetail(vd, 'Vente')),
+      ...vehicle.expenses.flatMap((e) =>
+        e.expenseDebts.map((vd) => toReversementDetail(vd, e.label)),
+      ),
+    ];
 
     const detail: VehicleDetail = {
       id: vehicle.id,

@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Result } from 'oxide.ts';
@@ -9,6 +9,7 @@ import {
   FindSavingsHistoryQuery,
   SavingsHistoryResult,
 } from './find-savings-events.query-handler';
+import { FindSavingsEventsRequestDto } from './find-savings-events.request.dto';
 
 @Controller(routesV1.version)
 export class FindSavingsHistoryHttpController {
@@ -21,10 +22,19 @@ export class FindSavingsHistoryHttpController {
   @ApiResponse({ status: HttpStatus.OK })
   async find(
     @CurrentUser() user: AuthenticatedUser,
+    @Query() queryParams: FindSavingsEventsRequestDto,
   ): Promise<SavingsHistoryResult> {
     const result: Result<SavingsHistoryResult, never> =
       await this.queryBus.execute(
-        new FindSavingsHistoryQuery({ userId: user.id }),
+        new FindSavingsHistoryQuery({
+          userId: user.id,
+          kind: queryParams.kind,
+          source: queryParams.source,
+          search: queryParams.search,
+          limit: queryParams.limit,
+          page: queryParams.page,
+          orderBy: { field: queryParams.sortBy, param: queryParams.sortOrder },
+        }),
       );
     return result.unwrap();
   }

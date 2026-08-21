@@ -40,6 +40,22 @@ export interface SavingsBalances {
   total: number;
 }
 
+// Pulled out of getBalances so callers that already have a history array
+// (e.g. a paginated query that filtered it) can derive balances without
+// paying for a second run of getHistory's six queries.
+export function computeBalances(
+  history: readonly SavingsHistoryItem[],
+): SavingsBalances {
+  let bank = 0;
+  let cash = 0;
+  for (const item of history) {
+    const sign = item.kind === 'ADDITION' ? 1 : -1;
+    if (item.source === 'BANK') bank += sign * item.amount;
+    else cash += sign * item.amount;
+  }
+  return { bank, cash, total: bank + cash };
+}
+
 const FRENCH_MONTHS = [
   'janvier',
   'février',
@@ -62,20 +78,50 @@ const FRENCH_MONTHS = [
 // s'annulent et n'ont jamais représenté de la vraie épargne. L'argent
 // prêté (dettes LENDER) compte des deux côtés, parce que cet argent
 // quitte vraiment ma poche et y revient vraiment.
+//
+// Architecture note — why getHistory() isn't a SQL view:
+//
+// The savings list merges 6 heterogeneous Prisma sources (lent debts,
+// repayments, budget withdrawals, manual events, vehicle expenses, vehicle
+// sales) into one common shape. Unlike this app's other paginated domains
+// (debts, vehicles, recurring charges, contacts), there's no single table to
+// query — pagination/sorting/filtering happen in memory, on the already-
+// merged array (see find-savings-events.query-handler.ts), instead of via
+// native Prisma `take`/`skip`.
+//
+// A SQL view (`CREATE VIEW`, readable by Prisma as a read-only table) would
+// in theory allow fully native DB-side pagination. Considered and shelved
+// for now, for two reasons:
+//
+// 1. Five of the six sources are plain projections (a direct `UNION ALL`,
+//    no issue). The sixth — vehicle sales — isn't: the amount that goes to
+//    the owner depends on computeInvestedByResponsibleParty +
+//    computeProfitShares (@modules/vehicle/domain/profit-sharing.ts), a
+//    split that's proportional on profit and equal on a deficit. Rewriting
+//    that in SQL duplicates the rule in a second language with no automatic
+//    guard against drift — and it has already changed more than once during
+//    this app's development, so it isn't a frozen rule to begin with.
+//
+// 2. To avoid that duplication, the owner's share could instead be frozen
+//    once — at declare-sale.service.ts, which already runs this exact
+//    computation to create the settlement debts for the other beneficiaries
+//    (type SOLD_VEHICLE) — then simply read by the view. But persisting
+//    *only* the owner's share (e.g. a nullable field on SoldVehicle) is
+//    asymmetric and reads oddly in the schema: every other beneficiary's
+//    share is already represented via those Debt rows, the owner's isn't. A
+//    clean version would need a symmetric settlement table (one row per
+//    beneficiary, owner included), replacing this mixed Debt/implicit
+//    mechanism — a real undertaking (migration + backfill of existing
+//    sales + declare-sale.service.ts rewrite), worth triggering only if
+//    data volume ever justifies it. At the current scale (a few thousand
+//    rows at most for a single user), the cost of recomputing in memory on
+//    every request is on the order of a millisecond — comfortably fine.
 @Injectable()
 export class SavingsEngine {
   constructor(private readonly prisma: PrismaService) {}
 
   async getBalances(userId: string): Promise<SavingsBalances> {
-    const history = await this.getHistory(userId);
-    let bank = 0;
-    let cash = 0;
-    for (const item of history) {
-      const sign = item.kind === 'ADDITION' ? 1 : -1;
-      if (item.source === 'BANK') bank += sign * item.amount;
-      else cash += sign * item.amount;
-    }
-    return { bank, cash, total: bank + cash };
+    return computeBalances(await this.getHistory(userId));
   }
 
   async getHistory(userId: string): Promise<SavingsHistoryItem[]> {

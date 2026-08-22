@@ -3,7 +3,6 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { AggregateID } from '@libs/ddd';
-import { PrismaService } from '@libs/db/prisma.service';
 import { eur } from '@libs/money/money';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
@@ -27,7 +26,6 @@ export class DeclareSaleService implements ICommandHandler {
   constructor(
     @Inject(VEHICLE_REPOSITORY)
     private readonly vehicleRepo: VehicleRepositoryPort,
-    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -103,13 +101,17 @@ export class DeclareSaleService implements ICommandHandler {
       cashAmount: cashierIsOwner ? cashAmount : undefined,
     });
 
-    await this.vehicleRepo.save(vehicle);
+    // Wrapped so a failure creating one beneficiary's debt doesn't leave
+    // the vehicle marked sold with only some of the expected debts in
+    // place.
+    await this.vehicleRepo.transaction(async () => {
+      await this.vehicleRepo.save(vehicle);
 
-    if (nonCashierBeneficiaries.length > 0) {
-      const payments = await this.prisma.expensePayer.findMany({
-        where: { expense: { vehicleId: command.vehicleId } },
-        select: { payerId: true, imputedToId: true, amount: true },
-      });
+      if (nonCashierBeneficiaries.length === 0) return;
+
+      const payments = await this.vehicleRepo.findExpensePayments(
+        command.vehicleId,
+      );
       const totalExpensesAmount = sumAmounts(payments);
       const profit = command.salePrice - totalExpensesAmount;
       const investedByUser = computeInvestedByResponsibleParty(payments);
@@ -122,33 +124,34 @@ export class DeclareSaleService implements ICommandHandler {
       // invested) owes money the other way instead of the amountToReceive
       // sign — this flips role/amount rather than being skipped, so a loss
       // still lands on whoever caused it, not just on the cashier.
-      const naturalRole = cashierIsOwner ? 'BORROWER' : 'LENDER';
-      const oppositeRole = naturalRole === 'BORROWER' ? 'LENDER' : 'BORROWER';
+      const naturalRole: 'LENDER' | 'BORROWER' = cashierIsOwner
+        ? 'BORROWER'
+        : 'LENDER';
+      const oppositeRole: 'LENDER' | 'BORROWER' =
+        naturalRole === 'BORROWER' ? 'LENDER' : 'BORROWER';
 
-      for (const beneficiary of nonCashierBeneficiaries) {
-        const totalInvested = investedByUser.get(beneficiary.id) ?? 0;
-        const profitShareAmount = profitShareById.get(beneficiary.id) ?? 0;
-        const amountToReceive = totalInvested + profitShareAmount;
+      const debtsToCreate = nonCashierBeneficiaries
+        .map((beneficiary) => {
+          const totalInvested = investedByUser.get(beneficiary.id) ?? 0;
+          const profitShareAmount = profitShareById.get(beneficiary.id) ?? 0;
+          const amountToReceive = totalInvested + profitShareAmount;
+          return { beneficiary, amountToReceive };
+        })
+        .filter(({ amountToReceive }) => amountToReceive !== 0)
+        .map(({ beneficiary, amountToReceive }) => ({
+          debtId: randomUUID(),
+          ownerId: vehicle.ownerId,
+          contactId: cashierIsOwner ? beneficiary.id : command.cashierId,
+          role: amountToReceive >= 0 ? naturalRole : oppositeRole,
+          amount: Math.abs(amountToReceive),
+          date: command.soldAt,
+        }));
 
-        if (amountToReceive === 0) continue;
-
-        const debtId = randomUUID();
-        await this.prisma.debt.create({
-          data: {
-            id: debtId,
-            ownerId: vehicle.ownerId,
-            contactId: cashierIsOwner ? beneficiary.id : command.cashierId,
-            role: amountToReceive >= 0 ? naturalRole : oppositeRole,
-            amount: Math.abs(amountToReceive),
-            date: command.soldAt,
-            type: 'SOLD_VEHICLE',
-            soldVehicleDebt: {
-              create: { soldVehicleId },
-            },
-          },
-        });
-      }
-    }
+      await this.vehicleRepo.createSoldVehicleDebts(
+        soldVehicleId,
+        debtsToCreate,
+      );
+    });
 
     return Ok(vehicle.id);
   }

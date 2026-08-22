@@ -35,6 +35,17 @@ export interface UpdateVehicleEventParams {
   note: string;
 }
 
+// A debt created as a side effect of an expense delegation or a sale — the
+// caller has already worked out which side is the owner vs. the contact.
+export interface CreateDebtParams {
+  debtId: string;
+  ownerId: string;
+  contactId: string;
+  role: 'LENDER' | 'BORROWER';
+  amount: number;
+  date: Date;
+}
+
 export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {
   save(entity: VehicleEntity): Promise<void>;
   insertExpense(params: InsertExpenseParams): Promise<void>;
@@ -48,6 +59,21 @@ export interface VehicleRepositoryPort extends RepositoryPort<VehicleEntity> {
     expenseId: string,
     params: UpdateExpenseParams,
   ): Promise<boolean>;
+  createExpenseDebts(
+    expenseId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void>;
+  // The payments behind every expense on a vehicle — used to work out who
+  // invested what when the vehicle is sold.
+  findExpensePayments(
+    vehicleId: string,
+  ): Promise<
+    Array<{ payerId: string; imputedToId: string | null; amount: number }>
+  >;
+  createSoldVehicleDebts(
+    soldVehicleId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void>;
   insertVehicleEvent(params: InsertVehicleEventParams): Promise<void>;
   updateVehicleEvent(
     vehicleId: string,

@@ -8,6 +8,7 @@ import { ConflictException } from '@libs/exceptions';
 import { VehicleEntity } from '../domain/vehicle.entity';
 import { VehicleMapper } from '../vehicle.mapper';
 import {
+  CreateDebtParams,
   InsertExpenseParams,
   InsertVehicleEventParams,
   UpdateExpenseParams,
@@ -100,25 +101,24 @@ export class VehicleRepository
     return result ? Some(this.mapper.toDomain(result as any)) : None;
   }
 
+  // A single statement doesn't need $transaction([...]) to be atomic — and
+  // that form can't be nested inside an ambient transaction anyway (see
+  // updateExpense below), since a Prisma.TransactionClient has no
+  // $transaction method of its own.
   async save(entity: VehicleEntity): Promise<void> {
     const props = entity.getProps();
-    await this.client.$transaction([
-      ...(props.soldVehicle
-        ? [
-            this.client.soldVehicle.create({
-              data: {
-                id: props.soldVehicle.id,
-                vehicleId: entity.id,
-                salePrice: props.soldVehicle.salePrice,
-                soldAt: props.soldVehicle.soldAt,
-                cashierId: props.soldVehicle.cashierId,
-                bankAmount: props.soldVehicle.bankAmount ?? null,
-                cashAmount: props.soldVehicle.cashAmount ?? null,
-              },
-            }),
-          ]
-        : []),
-    ]);
+    if (!props.soldVehicle) return;
+    await this.client.soldVehicle.create({
+      data: {
+        id: props.soldVehicle.id,
+        vehicleId: entity.id,
+        salePrice: props.soldVehicle.salePrice,
+        soldAt: props.soldVehicle.soldAt,
+        cashierId: props.soldVehicle.cashierId,
+        bankAmount: props.soldVehicle.bankAmount ?? null,
+        cashAmount: props.soldVehicle.cashAmount ?? null,
+      },
+    });
   }
 
   async insertExpense(params: InsertExpenseParams): Promise<void> {
@@ -177,26 +177,78 @@ export class VehicleRepository
     });
     if (!expense) return false;
 
-    await this.client.$transaction([
-      this.client.expensePayer.deleteMany({ where: { expenseId } }),
-      this.client.expense.update({
-        where: { id: expenseId },
-        data: {
-          label: params.label,
-          date: params.date,
-          payers: {
-            create: params.payers.map((p) => ({
-              payerId: p.payerId,
-              amount: p.amount,
-              source: p.source,
-              imputedToId: p.imputedToId ?? null,
-            })),
-          },
+    // Sequential, not $transaction([...]) — this needs to nest inside the
+    // ambient transaction the caller starts (see save() above), and a
+    // Prisma.TransactionClient can't itself call $transaction.
+    await this.client.expensePayer.deleteMany({ where: { expenseId } });
+    await this.client.expense.update({
+      where: { id: expenseId },
+      data: {
+        label: params.label,
+        date: params.date,
+        payers: {
+          create: params.payers.map((p) => ({
+            payerId: p.payerId,
+            amount: p.amount,
+            source: p.source,
+            imputedToId: p.imputedToId ?? null,
+          })),
         },
-      }),
-    ]);
+      },
+    });
 
     return true;
+  }
+
+  async createExpenseDebts(
+    expenseId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void> {
+    for (const d of debts) {
+      await this.client.debt.create({
+        data: {
+          id: d.debtId,
+          ownerId: d.ownerId,
+          contactId: d.contactId,
+          role: d.role,
+          amount: d.amount,
+          date: d.date,
+          type: 'EXPENSE',
+          expenseDebt: { create: { expenseId } },
+        },
+      });
+    }
+  }
+
+  async findExpensePayments(
+    vehicleId: string,
+  ): Promise<
+    Array<{ payerId: string; imputedToId: string | null; amount: number }>
+  > {
+    return this.client.expensePayer.findMany({
+      where: { expense: { vehicleId } },
+      select: { payerId: true, imputedToId: true, amount: true },
+    });
+  }
+
+  async createSoldVehicleDebts(
+    soldVehicleId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void> {
+    for (const d of debts) {
+      await this.client.debt.create({
+        data: {
+          id: d.debtId,
+          ownerId: d.ownerId,
+          contactId: d.contactId,
+          role: d.role,
+          amount: d.amount,
+          date: d.date,
+          type: 'SOLD_VEHICLE',
+          soldVehicleDebt: { create: { soldVehicleId } },
+        },
+      });
+    }
   }
 
   async insertVehicleEvent(params: InsertVehicleEventParams): Promise<void> {

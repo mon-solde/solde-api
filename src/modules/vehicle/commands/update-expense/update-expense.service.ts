@@ -2,7 +2,6 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
-import { PrismaService } from '@libs/db/prisma.service';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
@@ -21,7 +20,6 @@ export class UpdateExpenseService implements ICommandHandler {
   constructor(
     @Inject(VEHICLE_REPOSITORY)
     private readonly vehicleRepo: VehicleRepositoryPort,
-    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -81,39 +79,40 @@ export class UpdateExpenseService implements ICommandHandler {
       source: p.payerId === vehicle.ownerId ? p.source : undefined,
     }));
 
-    await this.vehicleRepo.deleteDebtsByIds(
-      existingExpenseDebts.map((d) => d.debtId),
-    );
+    // Wrapped so a failure partway through (deleting old debts, replacing
+    // payers, creating new delegation debts) doesn't leave the expense
+    // half-updated or debts orphaned.
+    const updated = await this.vehicleRepo.transaction(async () => {
+      await this.vehicleRepo.deleteDebtsByIds(
+        existingExpenseDebts.map((d) => d.debtId),
+      );
 
-    const updated = await this.vehicleRepo.updateExpense(
-      command.vehicleId,
-      command.expenseId,
-      { label: command.label, date: command.date, payers },
-    );
-    if (!updated) return Err(new ExpenseNotFoundError());
+      const didUpdate = await this.vehicleRepo.updateExpense(
+        command.vehicleId,
+        command.expenseId,
+        { label: command.label, date: command.date, payers },
+      );
+      if (!didUpdate) return false;
 
-    if (delegatedPayers.length > 0) {
-      await this.prisma.$transaction(
-        delegatedPayers.map((p) => {
-          const debtId = randomUUID();
-          const ownerIsPayer = p.payerId === vehicle.ownerId;
-          return this.prisma.debt.create({
-            data: {
-              id: debtId,
+      if (delegatedPayers.length > 0) {
+        await this.vehicleRepo.createExpenseDebts(
+          command.expenseId,
+          delegatedPayers.map((p) => {
+            const ownerIsPayer = p.payerId === vehicle.ownerId;
+            return {
+              debtId: randomUUID(),
               ownerId: vehicle.ownerId,
               contactId: ownerIsPayer ? p.imputedToId! : p.payerId,
               role: ownerIsPayer ? 'LENDER' : 'BORROWER',
               amount: p.amount,
               date: command.date,
-              type: 'EXPENSE',
-              expenseDebt: {
-                create: { expenseId: command.expenseId },
-              },
-            },
-          });
-        }),
-      );
-    }
+            };
+          }),
+        );
+      }
+      return true;
+    });
+    if (!updated) return Err(new ExpenseNotFoundError());
 
     return Ok(undefined);
   }

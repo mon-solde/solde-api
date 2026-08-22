@@ -2,7 +2,6 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
-import { PrismaService } from '@libs/db/prisma.service';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
 import { VEHICLE_REPOSITORY } from '@modules/vehicle/vehicle.di-tokens';
 import {
@@ -19,7 +18,6 @@ export class AddExpenseService implements ICommandHandler {
   constructor(
     @Inject(VEHICLE_REPOSITORY)
     private readonly vehicleRepo: VehicleRepositoryPort,
-    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -71,38 +69,37 @@ export class AddExpenseService implements ICommandHandler {
       source: p.payerId === vehicle.ownerId ? p.source : undefined,
     }));
 
-    await this.vehicleRepo.insertExpense({
-      id: expenseId,
-      vehicleId: command.vehicleId,
-      label: command.label,
-      date: command.date,
-      payers,
-    });
+    // Wrapped so a failure creating the delegation debts rolls back the
+    // expense too — the two must never exist independently of each other.
+    await this.vehicleRepo.transaction(async () => {
+      await this.vehicleRepo.insertExpense({
+        id: expenseId,
+        vehicleId: command.vehicleId,
+        label: command.label,
+        date: command.date,
+        payers,
+      });
 
-    if (delegatedPayers.length > 0) {
-      await this.prisma.$transaction(
-        delegatedPayers.map((p) => {
-          const debtId = randomUUID();
-          // Payer is owed (lender), the person it's imputed to owes
-          // (borrower) — whichever of the two is the owner decides the role.
-          const ownerIsPayer = p.payerId === vehicle.ownerId;
-          return this.prisma.debt.create({
-            data: {
-              id: debtId,
+      if (delegatedPayers.length > 0) {
+        await this.vehicleRepo.createExpenseDebts(
+          expenseId,
+          delegatedPayers.map((p) => {
+            // Payer is owed (lender), the person it's imputed to owes
+            // (borrower) — whichever of the two is the owner decides the
+            // role.
+            const ownerIsPayer = p.payerId === vehicle.ownerId;
+            return {
+              debtId: randomUUID(),
               ownerId: vehicle.ownerId,
               contactId: ownerIsPayer ? p.imputedToId! : p.payerId,
               role: ownerIsPayer ? 'LENDER' : 'BORROWER',
               amount: p.amount,
               date: command.date,
-              type: 'EXPENSE',
-              expenseDebt: {
-                create: { expenseId },
-              },
-            },
-          });
-        }),
-      );
-    }
+            };
+          }),
+        );
+      }
+    });
 
     return Ok(expenseId);
   }

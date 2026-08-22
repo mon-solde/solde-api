@@ -87,11 +87,14 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
   // because what's left unpaid (or overpaid) is within
   // SETTLEMENT_TOLERANCE_CENTS of matching exactly — either fact stays
   // independently readable via isManuallySettled/totalRepaid/amount,
-  // nothing here is stored redundantly.
+  // nothing here is stored redundantly. The tolerance only ever closes a
+  // debt that's actually seen a repayment — an untouched debt under 10€
+  // isn't "basically free" just because the gap is small.
   get isRepaid(): boolean {
     return (
       this.isManuallySettled ||
-      this.gapToFullyRepaid < SETTLEMENT_TOLERANCE_CENTS
+      (this.totalRepaid > 0 &&
+        this.gapToFullyRepaid < SETTLEMENT_TOLERANCE_CENTS)
     );
   }
 

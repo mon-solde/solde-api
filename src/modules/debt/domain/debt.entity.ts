@@ -9,6 +9,13 @@ import {
   RepaymentProps,
 } from './debt.types';
 
+// A debt within this small a gap of matching exactly — whether slightly
+// over or slightly under — is treated as settled either way. Rounding a
+// payment up or down by a few euros shouldn't leave a debt looking unpaid,
+// or block someone from closing it out. Only a genuinely small rounding
+// gap is tolerated, not a materially wrong amount.
+const SETTLEMENT_TOLERANCE_CENTS = 1000; // 10€, exclusive
+
 export class DebtEntity extends AggregateRoot<DebtProps> {
   protected readonly _id: AggregateID;
 
@@ -52,24 +59,29 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
     return toCents(total);
   }
 
+  // Positive while still owed money, negative once overpaid.
+  private get gapToFullyRepaid(): number {
+    const gap = eur(this.props.amount).subtract(eur(this.totalRepaid));
+    return toCents(gap);
+  }
+
   get remaining(): number {
-    if (this.props.isManuallySettled) return 0;
-    const remaining = eur(this.props.amount).subtract(eur(this.totalRepaid));
-    return Math.max(0, toCents(remaining));
+    return this.isRepaid ? 0 : Math.max(0, this.gapToFullyRepaid);
   }
 
   get isManuallySettled(): boolean {
     return this.props.isManuallySettled;
   }
 
-  // A debt is repaid either because the numbers actually match, or because
-  // the owner explicitly decided a mismatch (e.g. a rounding gap) doesn't
-  // matter — either fact stays independently readable via totalRepaid/
-  // amount and isManuallySettled, nothing here is stored redundantly.
+  // A debt is repaid either because the owner explicitly decided so, or
+  // because what's left unpaid (or overpaid) is within
+  // SETTLEMENT_TOLERANCE_CENTS of matching exactly — either fact stays
+  // independently readable via isManuallySettled/totalRepaid/amount,
+  // nothing here is stored redundantly.
   get isRepaid(): boolean {
     return (
       this.props.isManuallySettled ||
-      eur(this.totalRepaid).greaterThanOrEqual(eur(this.props.amount))
+      this.gapToFullyRepaid < SETTLEMENT_TOLERANCE_CENTS
     );
   }
 
@@ -79,6 +91,10 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
 
   unmarkAsSettled(): void {
     this.props.isManuallySettled = false;
+  }
+
+  canAcceptRepayment(amount: number): boolean {
+    return amount - this.remaining < SETTLEMENT_TOLERANCE_CENTS;
   }
 
   isOwnedBy(userId: string): boolean {

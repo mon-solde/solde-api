@@ -37,7 +37,7 @@ export class AddRepaymentService implements ICommandHandler {
     const debt = found.unwrap();
     if (!debt.isOwnedBy(command.requesterId))
       return Err(new DebtAccessDeniedError());
-    if (command.amount > debt.remaining)
+    if (!debt.canAcceptRepayment(command.amount))
       return Err(new DebtRepaymentExceedsAmountError());
 
     if (command.source === 'BOTH') {

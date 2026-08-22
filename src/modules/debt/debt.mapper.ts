@@ -62,6 +62,7 @@ export class DebtMapper
             note: r.note ?? undefined,
             source: r.source as 'BANK' | 'CASH',
           })),
+          isManuallySettled: record.isManuallySettled,
         },
       });
     }
@@ -92,6 +93,7 @@ export class DebtMapper
             note: r.note ?? undefined,
             source: r.source as 'BANK' | 'CASH',
           })),
+          isManuallySettled: record.isManuallySettled,
         },
       });
     }
@@ -118,6 +120,7 @@ export class DebtMapper
           note: r.note ?? undefined,
           source: r.source as 'BANK' | 'CASH',
         })),
+        isManuallySettled: record.isManuallySettled,
       },
     });
   }
@@ -138,6 +141,7 @@ export class DebtMapper
     dto.totalRepaid = entity.totalRepaid;
     dto.remaining = entity.remaining;
     dto.isRepaid = entity.isRepaid;
+    dto.isManuallySettled = entity.isManuallySettled;
     dto.repayments = props.repayments.map((r) => ({
       id: r.id,
       amount: r.amount,

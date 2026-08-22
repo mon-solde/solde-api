@@ -26,6 +26,7 @@ export class DebtResponseDto extends ResponseBase {
   @ApiProperty({ description: 'Amount in cents' }) totalRepaid: number;
   @ApiProperty({ description: 'Amount in cents' }) remaining: number;
   @ApiProperty() isRepaid: boolean;
+  @ApiProperty() isManuallySettled: boolean;
   @ApiProperty({ type: [RepaymentResponseDto] })
   repayments: RepaymentResponseDto[];
 }

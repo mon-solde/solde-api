@@ -16,6 +16,8 @@ import { DeleteRepaymentHttpController } from './commands/delete-repayment/delet
 import { DeleteRepaymentService } from './commands/delete-repayment/delete-repayment.service';
 import { FindDebtsHttpController } from './queries/find-debts/find-debts.http.controller';
 import { FindDebtsQueryHandler } from './queries/find-debts/find-debts.query-handler';
+import { SetDebtSettledHttpController } from './commands/set-debt-settled/set-debt-settled.http.controller';
+import { SetDebtSettledService } from './commands/set-debt-settled/set-debt-settled.service';
 
 const httpControllers = [
   CreateLentDebtHttpController,
@@ -24,6 +26,7 @@ const httpControllers = [
   AddRepaymentHttpController,
   DeleteRepaymentHttpController,
   FindDebtsHttpController,
+  SetDebtSettledHttpController,
 ];
 
 const commandHandlers: Provider[] = [
@@ -31,6 +34,7 @@ const commandHandlers: Provider[] = [
   DeleteDebtService,
   AddRepaymentService,
   DeleteRepaymentService,
+  SetDebtSettledService,
 ];
 
 const queryHandlers: Provider[] = [FindDebtsQueryHandler];

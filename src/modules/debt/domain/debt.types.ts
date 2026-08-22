@@ -28,6 +28,7 @@ export interface DebtProps {
   vehicleId?: string;
   vehicleName?: string;
   repayments: RepaymentProps[];
+  isManuallySettled: boolean;
 }
 
 export interface CreateManualDebtProps {

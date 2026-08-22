@@ -52,6 +52,7 @@ export type DebtModel = {
   amount: number;
   date: Date;
   type: string;
+  isManuallySettled: boolean;
   createdAt: Date;
   updatedAt: Date;
   repayments?: RepaymentModel[];
@@ -198,6 +199,7 @@ export class DebtRepository
     await this.client.debt.update({
       where: { id: entity.id },
       data: {
+        isManuallySettled: copy.isManuallySettled,
         repayments: {
           createMany: {
             // skipDuplicates ensures only new repayments are inserted

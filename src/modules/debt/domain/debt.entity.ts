@@ -18,6 +18,7 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
       ...create,
       type: DebtType.MANUAL,
       repayments: [],
+      isManuallySettled: false,
     };
     return new DebtEntity({ id, props });
   }
@@ -28,6 +29,7 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
       ...create,
       type: DebtType.SOLD_VEHICLE,
       repayments: [],
+      isManuallySettled: false,
     };
     return new DebtEntity({ id, props });
   }
@@ -51,12 +53,32 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
   }
 
   get remaining(): number {
+    if (this.props.isManuallySettled) return 0;
     const remaining = eur(this.props.amount).subtract(eur(this.totalRepaid));
     return Math.max(0, toCents(remaining));
   }
 
+  get isManuallySettled(): boolean {
+    return this.props.isManuallySettled;
+  }
+
+  // A debt is repaid either because the numbers actually match, or because
+  // the owner explicitly decided a mismatch (e.g. a rounding gap) doesn't
+  // matter — either fact stays independently readable via totalRepaid/
+  // amount and isManuallySettled, nothing here is stored redundantly.
   get isRepaid(): boolean {
-    return eur(this.totalRepaid).greaterThanOrEqual(eur(this.props.amount));
+    return (
+      this.props.isManuallySettled ||
+      eur(this.totalRepaid).greaterThanOrEqual(eur(this.props.amount))
+    );
+  }
+
+  markAsSettled(): void {
+    this.props.isManuallySettled = true;
+  }
+
+  unmarkAsSettled(): void {
+    this.props.isManuallySettled = false;
   }
 
   isOwnedBy(userId: string): boolean {

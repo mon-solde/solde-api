@@ -220,6 +220,10 @@ model Debt {
   amount    Int
   date      DateTime
   type      DebtType
+  /// Lets the owner declare a debt settled regardless of totalRepaid vs
+  /// amount (e.g. a rounding gap) — see DebtEntity.isRepaid, which is the
+  /// only place amount-matching and this flag are combined.
+  isManuallySettled Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

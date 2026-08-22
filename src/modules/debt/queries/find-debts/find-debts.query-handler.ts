@@ -11,7 +11,7 @@ export class FindDebtsQuery extends PaginatedQueryBase {
   readonly userId: string;
   readonly contactId?: string;
   readonly role?: 'LENDER' | 'BORROWER';
-  readonly status?: 'REPAID' | 'ONGOING';
+  readonly status?: 'REPAID' | 'ONGOING' | 'FORGIVEN';
   readonly vehicleId?: string;
 
   constructor(props: PaginatedParams<FindDebtsQuery>) {
@@ -53,6 +53,18 @@ function sumRemaining(debts: readonly DebtEntity[]): number {
   return debts.reduce((sum, debt) => sum + debt.remaining, 0);
 }
 
+// A forgiven debt only ever matches the FORGIVEN bucket, even if it also
+// happens to satisfy the repaid-amount check — forgiveness is the more
+// specific, deliberate status.
+function matchesStatus(
+  debt: DebtEntity,
+  status: 'REPAID' | 'ONGOING' | 'FORGIVEN',
+): boolean {
+  if (status === 'FORGIVEN') return debt.isForgiven;
+  if (debt.isForgiven) return false;
+  return status === 'REPAID' ? debt.isRepaid : !debt.isRepaid;
+}
+
 @QueryHandler(FindDebtsQuery)
 export class FindDebtsQueryHandler implements IQueryHandler {
   constructor(
@@ -78,7 +90,7 @@ export class FindDebtsQueryHandler implements IQueryHandler {
         query.orderBy,
       );
       const filtered = allMatching.filter((debt) =>
-        query.status === 'REPAID' ? debt.isRepaid : !debt.isRepaid,
+        matchesStatus(debt, query.status as 'REPAID' | 'ONGOING' | 'FORGIVEN'),
       );
       return Ok({
         data: filtered.slice(query.offset, query.offset + query.limit),

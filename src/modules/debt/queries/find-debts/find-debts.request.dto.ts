@@ -19,12 +19,12 @@ export class FindDebtsRequestDto extends PaginatedQueryRequestDto {
 
   @ApiProperty({
     required: false,
-    enum: ['REPAID', 'ONGOING'],
+    enum: ['REPAID', 'ONGOING', 'FORGIVEN'],
     description: 'Filter by repayment status',
   })
   @IsOptional()
-  @IsIn(['REPAID', 'ONGOING'])
-  readonly status?: 'REPAID' | 'ONGOING';
+  @IsIn(['REPAID', 'ONGOING', 'FORGIVEN'])
+  readonly status?: 'REPAID' | 'ONGOING' | 'FORGIVEN';
 
   @ApiProperty({ required: false, description: 'Filter by vehicle id' })
   @IsOptional()

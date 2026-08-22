@@ -212,6 +212,11 @@ enum DebtRole {
   BORROWER
 }
 
+enum DebtOverrideStatus {
+  MANUALLY_SETTLED
+  FORGIVEN
+}
+
 model Debt {
   id        String   @id
   ownerId   String
@@ -220,10 +225,11 @@ model Debt {
   amount    Int
   date      DateTime
   type      DebtType
-  /// Lets the owner declare a debt settled regardless of totalRepaid vs
-  /// amount (e.g. a rounding gap) — see DebtEntity.isRepaid, which is the
-  /// only place amount-matching and this flag are combined.
-  isManuallySettled Boolean  @default(false)
+  /// Explicit override of the otherwise fully-computed repaid status — null
+  /// means no override (isRepaid/isForgiven stay derived from
+  /// totalRepaid/amount). A single nullable column so the two overrides can
+  /// never both apply at once; see DebtEntity.isRepaid/isForgiven.
+  overrideStatus DebtOverrideStatus?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

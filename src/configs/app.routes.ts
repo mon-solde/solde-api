@@ -47,6 +47,7 @@ export const routesV1 = {
     repayments: `${debtsRoot}/:id/repayments`,
     repaymentById: `${debtsRoot}/:id/repayments/:repaymentId`,
     settled: `${debtsRoot}/:id/settled`,
+    forgiven: `${debtsRoot}/:id/forgiven`,
   },
   contact: {
     root: contactsRoot,

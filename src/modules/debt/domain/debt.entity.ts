@@ -4,6 +4,7 @@ import { eur, toCents } from '@libs/money/money';
 import {
   CreateManualDebtProps,
   CreateSoldVehicleDebtProps,
+  DebtOverrideStatus,
   DebtProps,
   DebtType,
   RepaymentProps,
@@ -25,7 +26,7 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
       ...create,
       type: DebtType.MANUAL,
       repayments: [],
-      isManuallySettled: false,
+      overrideStatus: null,
     };
     return new DebtEntity({ id, props });
   }
@@ -36,7 +37,7 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
       ...create,
       type: DebtType.SOLD_VEHICLE,
       repayments: [],
-      isManuallySettled: false,
+      overrideStatus: null,
     };
     return new DebtEntity({ id, props });
   }
@@ -66,11 +67,20 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
   }
 
   get remaining(): number {
+    if (this.isForgiven) return 0;
     return this.isRepaid ? 0 : Math.max(0, this.gapToFullyRepaid);
   }
 
   get isManuallySettled(): boolean {
-    return this.props.isManuallySettled;
+    return this.props.overrideStatus === DebtOverrideStatus.MANUALLY_SETTLED;
+  }
+
+  // A distinct final status from isRepaid — the owner waived the debt
+  // outright, with no repayment involved, not just an amount that happens
+  // to match. See DebtOverrideStatus: mutually exclusive with
+  // isManuallySettled by construction (a single column).
+  get isForgiven(): boolean {
+    return this.props.overrideStatus === DebtOverrideStatus.FORGIVEN;
   }
 
   // A debt is repaid either because the owner explicitly decided so, or
@@ -80,17 +90,25 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
   // nothing here is stored redundantly.
   get isRepaid(): boolean {
     return (
-      this.props.isManuallySettled ||
+      this.isManuallySettled ||
       this.gapToFullyRepaid < SETTLEMENT_TOLERANCE_CENTS
     );
   }
 
   markAsSettled(): void {
-    this.props.isManuallySettled = true;
+    this.props.overrideStatus = DebtOverrideStatus.MANUALLY_SETTLED;
   }
 
   unmarkAsSettled(): void {
-    this.props.isManuallySettled = false;
+    if (this.isManuallySettled) this.props.overrideStatus = null;
+  }
+
+  forgive(): void {
+    this.props.overrideStatus = DebtOverrideStatus.FORGIVEN;
+  }
+
+  unforgive(): void {
+    if (this.isForgiven) this.props.overrideStatus = null;
   }
 
   canAcceptRepayment(amount: number): boolean {

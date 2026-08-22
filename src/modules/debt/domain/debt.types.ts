@@ -4,6 +4,15 @@ export enum DebtType {
   EXPENSE = 'EXPENSE',
 }
 
+// A one-time decision the owner made about this debt, overriding the
+// otherwise fully-computed repaid status. null means no such decision was
+// made. The two values are mutually exclusive by construction — there's
+// only one column, so a debt can never be both at once.
+export enum DebtOverrideStatus {
+  MANUALLY_SETTLED = 'MANUALLY_SETTLED',
+  FORGIVEN = 'FORGIVEN',
+}
+
 export interface RepaymentProps {
   id: string;
   amount: number;
@@ -28,7 +37,7 @@ export interface DebtProps {
   vehicleId?: string;
   vehicleName?: string;
   repayments: RepaymentProps[];
-  isManuallySettled: boolean;
+  overrideStatus: DebtOverrideStatus | null;
 }
 
 export interface CreateManualDebtProps {

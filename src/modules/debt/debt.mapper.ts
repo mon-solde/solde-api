@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Mapper } from '@libs/ddd';
 import { DebtEntity } from './domain/debt.entity';
 import { DebtModel } from './database/debt.repository';
-import { DebtType } from './domain/debt.types';
+import { DebtOverrideStatus, DebtType } from './domain/debt.types';
 import { DebtResponseDto } from './dtos/debt.response.dto';
 
 @Injectable()
@@ -62,7 +62,7 @@ export class DebtMapper
             note: r.note ?? undefined,
             source: r.source as 'BANK' | 'CASH',
           })),
-          isManuallySettled: record.isManuallySettled,
+          overrideStatus: record.overrideStatus as DebtOverrideStatus | null,
         },
       });
     }
@@ -93,7 +93,7 @@ export class DebtMapper
             note: r.note ?? undefined,
             source: r.source as 'BANK' | 'CASH',
           })),
-          isManuallySettled: record.isManuallySettled,
+          overrideStatus: record.overrideStatus as DebtOverrideStatus | null,
         },
       });
     }
@@ -120,7 +120,7 @@ export class DebtMapper
           note: r.note ?? undefined,
           source: r.source as 'BANK' | 'CASH',
         })),
-        isManuallySettled: record.isManuallySettled,
+        overrideStatus: record.overrideStatus as DebtOverrideStatus | null,
       },
     });
   }
@@ -142,6 +142,7 @@ export class DebtMapper
     dto.remaining = entity.remaining;
     dto.isRepaid = entity.isRepaid;
     dto.isManuallySettled = entity.isManuallySettled;
+    dto.isForgiven = entity.isForgiven;
     dto.repayments = props.repayments.map((r) => ({
       id: r.id,
       amount: r.amount,

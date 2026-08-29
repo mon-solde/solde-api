@@ -12,11 +12,12 @@ export interface ContactRepositoryPort extends RepositoryPort<ContactEntity> {
     filters: ContactFilters,
     pagination: PaginatedQueryParams,
   ): Promise<Paginated<ContactEntity>>;
-  save(entity: ContactEntity): Promise<void>;
   findAllByOwnerIdIncludingHidden(ownerId: string): Promise<ContactLookup[]>;
   findOneByIdIncludingHidden(contactId: string): Promise<ContactLookup | null>;
   reactivate(contactId: string): Promise<void>;
+  publishDeletedEvent(entity: ContactEntity): Promise<void>;
 
-  // delete() resolves to true when the contact was fully erased, false when
-  // it only got hidden (soft delete) because it still has history.
+  // delete() always soft-deletes and returns false now — see
+  // DeleteContactService for the hard-erase decision (dispatches user's
+  // DeleteUserCommand) and publishDeletedEvent() for that path's event.
 }

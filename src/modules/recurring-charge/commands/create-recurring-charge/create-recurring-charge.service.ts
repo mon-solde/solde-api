@@ -25,7 +25,7 @@ export class CreateRecurringChargeService implements ICommandHandler {
       dueDay: command.dueDay,
     });
 
-    await this.repo.insert(entity);
+    await this.repo.transaction(() => this.repo.insert(entity));
     return Ok(entity.id);
   }
 }

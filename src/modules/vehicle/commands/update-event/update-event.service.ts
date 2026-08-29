@@ -34,10 +34,10 @@ export class UpdateEventService implements ICommandHandler {
     if (!vehicle.isOwner(command.requesterId))
       return Err(new VehicleAccessDeniedError());
 
-    const updated = await this.vehicleRepo.updateVehicleEvent(
-      command.vehicleId,
-      command.eventId,
-      { note: command.note },
+    const updated = await this.vehicleRepo.transaction(() =>
+      this.vehicleRepo.updateVehicleEvent(command.vehicleId, command.eventId, {
+        note: command.note,
+      }),
     );
     if (!updated) return Err(new VehicleEventNotFoundError());
 

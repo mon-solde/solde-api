@@ -8,7 +8,6 @@ import { ConflictException } from '@libs/exceptions';
 import { VehicleEntity } from '../domain/vehicle.entity';
 import { VehicleMapper } from '../vehicle.mapper';
 import {
-  CreateDebtParams,
   InsertExpenseParams,
   InsertVehicleEventParams,
   UpdateExpenseParams,
@@ -153,11 +152,6 @@ export class VehicleRepository
     }));
   }
 
-  async deleteDebtsByIds(debtIds: string[]): Promise<void> {
-    if (debtIds.length === 0) return;
-    await this.client.debt.deleteMany({ where: { id: { in: debtIds } } });
-  }
-
   async deleteExpense(vehicleId: string, expenseId: string): Promise<boolean> {
     const expense = await this.client.expense.findFirst({
       where: { id: expenseId, vehicleId },
@@ -200,26 +194,6 @@ export class VehicleRepository
     return true;
   }
 
-  async createExpenseDebts(
-    expenseId: string,
-    debts: CreateDebtParams[],
-  ): Promise<void> {
-    for (const d of debts) {
-      await this.client.debt.create({
-        data: {
-          id: d.debtId,
-          ownerId: d.ownerId,
-          contactId: d.contactId,
-          role: d.role,
-          amount: d.amount,
-          date: d.date,
-          type: 'EXPENSE',
-          expenseDebt: { create: { expenseId } },
-        },
-      });
-    }
-  }
-
   async findExpensePayments(
     vehicleId: string,
   ): Promise<
@@ -229,26 +203,6 @@ export class VehicleRepository
       where: { expense: { vehicleId } },
       select: { payerId: true, imputedToId: true, amount: true },
     });
-  }
-
-  async createSoldVehicleDebts(
-    soldVehicleId: string,
-    debts: CreateDebtParams[],
-  ): Promise<void> {
-    for (const d of debts) {
-      await this.client.debt.create({
-        data: {
-          id: d.debtId,
-          ownerId: d.ownerId,
-          contactId: d.contactId,
-          role: d.role,
-          amount: d.amount,
-          date: d.date,
-          type: 'SOLD_VEHICLE',
-          soldVehicleDebt: { create: { soldVehicleId } },
-        },
-      });
-    }
   }
 
   async insertVehicleEvent(params: InsertVehicleEventParams): Promise<void> {

@@ -20,6 +20,9 @@ import { SetDebtSettledHttpController } from './commands/set-debt-settled/set-de
 import { SetDebtSettledService } from './commands/set-debt-settled/set-debt-settled.service';
 import { SetDebtForgivenHttpController } from './commands/set-debt-forgiven/set-debt-forgiven.http.controller';
 import { SetDebtForgivenService } from './commands/set-debt-forgiven/set-debt-forgiven.service';
+import { CreateSoldVehicleDebtsService } from './commands/create-sold-vehicle-debts/create-sold-vehicle-debts.service';
+import { CreateExpenseDebtsService } from './commands/create-expense-debts/create-expense-debts.service';
+import { DeleteDebtsByIdsService } from './commands/delete-debts-by-ids/delete-debts-by-ids.service';
 
 const httpControllers = [
   CreateLentDebtHttpController,
@@ -32,6 +35,9 @@ const httpControllers = [
   SetDebtForgivenHttpController,
 ];
 
+// CreateSoldVehicleDebtsCommand/CreateExpenseDebtsCommand/
+// DeleteDebtsByIdsCommand have no controller of their own — dispatched
+// internally by the vehicle module.
 const commandHandlers: Provider[] = [
   CreateDebtService,
   DeleteDebtService,
@@ -39,6 +45,9 @@ const commandHandlers: Provider[] = [
   DeleteRepaymentService,
   SetDebtSettledService,
   SetDebtForgivenService,
+  CreateSoldVehicleDebtsService,
+  CreateExpenseDebtsService,
+  DeleteDebtsByIdsService,
 ];
 
 const queryHandlers: Provider[] = [FindDebtsQueryHandler];

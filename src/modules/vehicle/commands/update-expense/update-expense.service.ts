@@ -1,5 +1,5 @@
 import { Inject } from '@nestjs/common';
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
@@ -13,6 +13,8 @@ import {
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
+import { CreateExpenseDebtsCommand } from '@modules/debt/commands/create-expense-debts/create-expense-debts.service';
+import { DeleteDebtsByIdsCommand } from '@modules/debt/commands/delete-debts-by-ids/delete-debts-by-ids.service';
 import { UpdateExpenseCommand } from './update-expense.command';
 
 @CommandHandler(UpdateExpenseCommand)
@@ -20,6 +22,7 @@ export class UpdateExpenseService implements ICommandHandler {
   constructor(
     @Inject(VEHICLE_REPOSITORY)
     private readonly vehicleRepo: VehicleRepositoryPort,
+    private readonly commandBus: CommandBus,
   ) {}
 
   async execute(
@@ -83,9 +86,13 @@ export class UpdateExpenseService implements ICommandHandler {
     // payers, creating new delegation debts) doesn't leave the expense
     // half-updated or debts orphaned.
     const updated = await this.vehicleRepo.transaction(async () => {
-      await this.vehicleRepo.deleteDebtsByIds(
-        existingExpenseDebts.map((d) => d.debtId),
-      );
+      if (existingExpenseDebts.length > 0) {
+        await this.commandBus.execute(
+          new DeleteDebtsByIdsCommand({
+            debtIds: existingExpenseDebts.map((d) => d.debtId),
+          }),
+        );
+      }
 
       const didUpdate = await this.vehicleRepo.updateExpense(
         command.vehicleId,
@@ -95,18 +102,20 @@ export class UpdateExpenseService implements ICommandHandler {
       if (!didUpdate) return false;
 
       if (delegatedPayers.length > 0) {
-        await this.vehicleRepo.createExpenseDebts(
-          command.expenseId,
-          delegatedPayers.map((p) => {
-            const ownerIsPayer = p.payerId === vehicle.ownerId;
-            return {
-              debtId: randomUUID(),
-              ownerId: vehicle.ownerId,
-              contactId: ownerIsPayer ? p.imputedToId! : p.payerId,
-              role: ownerIsPayer ? 'LENDER' : 'BORROWER',
-              amount: p.amount,
-              date: command.date,
-            };
+        await this.commandBus.execute(
+          new CreateExpenseDebtsCommand({
+            expenseId: command.expenseId,
+            debts: delegatedPayers.map((p) => {
+              const ownerIsPayer = p.payerId === vehicle.ownerId;
+              return {
+                debtId: randomUUID(),
+                ownerId: vehicle.ownerId,
+                contactId: ownerIsPayer ? p.imputedToId! : p.payerId,
+                role: ownerIsPayer ? 'LENDER' : 'BORROWER',
+                amount: p.amount,
+                date: command.date,
+              };
+            }),
           }),
         );
       }

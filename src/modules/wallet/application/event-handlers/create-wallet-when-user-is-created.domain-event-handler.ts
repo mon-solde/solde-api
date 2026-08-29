@@ -18,6 +18,6 @@ export class CreateWalletWhenUserIsCreatedDomainEventHandler {
     const wallet = WalletEntity.create({
       userId: event.aggregateId,
     });
-    return this.walletRepo.insert(wallet);
+    return this.walletRepo.transaction(() => this.walletRepo.insert(wallet));
   }
 }

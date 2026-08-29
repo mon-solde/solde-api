@@ -30,11 +30,6 @@ export class ContactEntity extends AggregateRoot<ContactProps> {
     return this.props.ownerId === accountId;
   }
 
-  rename(firstName: string, lastName?: string): void {
-    this.props.firstName = firstName;
-    this.props.lastName = lastName;
-  }
-
   delete(): void {
     this.addEvent(new ContactDeletedDomainEvent({ aggregateId: this.id }));
   }

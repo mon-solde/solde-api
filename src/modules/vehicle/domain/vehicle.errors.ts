@@ -100,6 +100,15 @@ export class VehicleEventNotFoundError extends ExceptionBase {
   }
 }
 
+export class VehicleAmountSplitMismatchError extends ExceptionBase {
+  public readonly code = 'VEHICLE.AMOUNT_SPLIT_MISMATCH';
+  constructor(bankAmount: number, cashAmount: number, salePrice: number) {
+    super(
+      `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au prix de vente (${salePrice})`,
+    );
+  }
+}
+
 export class VehicleSaleReimbursementRequiresOwnerError extends ExceptionBase {
   static readonly message =
     'A sale reimbursement must involve the vehicle owner as either the cashier or the participant being reimbursed';

@@ -35,7 +35,7 @@ export class DeleteDebtService implements ICommandHandler {
     if (!debt.isOwnedBy(command.requesterId))
       return Err(new DebtAccessDeniedError());
 
-    await this.debtRepo.delete(debt);
+    await this.debtRepo.transaction(() => this.debtRepo.delete(debt));
     return Ok(true);
   }
 }

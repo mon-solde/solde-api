@@ -1,29 +1,14 @@
-import { Command, CommandProps } from '@libs/ddd';
-import { UserRoles } from '@modules/user/domain/user.types';
-
-export class CreateUserCommand extends Command {
-  readonly email: string;
-
+// Internal-only: dispatched by whichever module owns a User subtype
+// (contact, later account) to create the shared CTI base row — never by an
+// external caller directly (a bare User with no Account/Contact is an
+// invalid state, see prisma/schema.prisma's User.role comment).
+export class CreateUserCommand {
+  readonly id: string;
   readonly firstName: string;
+  readonly lastName?: string;
+  readonly role: 'ACCOUNT' | 'CONTACT';
 
-  readonly lastName: string;
-
-  readonly role: UserRoles;
-
-  // readonly country: string;
-  // readonly postalCode: string;
-  // readonly street: string;
-
-  constructor(
-    props: CommandProps<Omit<CreateUserCommand, 'role'>> & { role?: UserRoles },
-  ) {
-    super(props);
-    this.email = props.email;
-    this.firstName = props.firstName;
-    this.lastName = props.lastName;
-    this.role = props.role ?? UserRoles.participant;
-    // this.country = props.country;
-    // this.postalCode = props.postalCode;
-    // this.street = props.street;
+  constructor(props: CreateUserCommand) {
+    Object.assign(this, props);
   }
 }

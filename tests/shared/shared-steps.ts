@@ -1,6 +1,5 @@
 import { ApiErrorResponse } from '@src/libs/api/api-error.response';
 import { TestContext } from '@tests/test-utils/TestContext';
-import { CreateUserTestContext } from '@tests/user/user-shared-steps';
 import { DefineStepFunction } from 'jest-cucumber';
 
 /**
@@ -9,7 +8,7 @@ import { DefineStepFunction } from 'jest-cucumber';
 
 export const iReceiveAnErrorWithStatusCode = (
   then: DefineStepFunction,
-  ctx: TestContext<CreateUserTestContext>,
+  ctx: TestContext<unknown>,
 ): void => {
   then(
     /^I receive an error "(.*)" with status code (\d+)$/,

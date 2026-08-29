@@ -35,7 +35,7 @@ export class DeleteVehicleService implements ICommandHandler {
     if (!vehicle.isOwner(command.requesterId))
       return Err(new VehicleAccessDeniedError());
 
-    await this.vehicleRepo.delete(vehicle);
+    await this.vehicleRepo.transaction(() => this.vehicleRepo.delete(vehicle));
 
     return Ok(true);
   }

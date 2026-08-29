@@ -28,11 +28,13 @@ export class AddEventService implements ICommandHandler {
       return Err(new VehicleAccessDeniedError());
 
     const eventId = randomUUID();
-    await this.vehicleRepo.insertVehicleEvent({
-      id: eventId,
-      vehicleId: command.vehicleId,
-      note: command.note,
-    });
+    await this.vehicleRepo.transaction(() =>
+      this.vehicleRepo.insertVehicleEvent({
+        id: eventId,
+        vehicleId: command.vehicleId,
+        note: command.note,
+      }),
+    );
 
     return Ok(eventId);
   }

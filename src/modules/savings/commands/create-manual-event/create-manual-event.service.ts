@@ -40,7 +40,7 @@ export class CreateManualSavingsEventService implements ICommandHandler {
       label: command.label,
       date: command.date,
     });
-    await this.repo.insert(entity);
+    await this.repo.transaction(() => this.repo.insert(entity));
     return Ok(entity.id);
   }
 }

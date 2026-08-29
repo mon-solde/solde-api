@@ -10,6 +10,16 @@ export class UserAlreadyExistsError extends ExceptionBase {
   }
 }
 
+export class UserNotFoundError extends ExceptionBase {
+  static readonly message = 'User not found';
+
+  public readonly code = 'USER.NOT_FOUND';
+
+  constructor(cause?: Error, metadata?: unknown) {
+    super(UserNotFoundError.message, cause, metadata);
+  }
+}
+
 export class UserAccessDeniedError extends ExceptionBase {
   static readonly message = 'You can only delete your own account';
 

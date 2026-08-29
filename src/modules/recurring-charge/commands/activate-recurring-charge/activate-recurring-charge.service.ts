@@ -40,7 +40,7 @@ export class ActivateRecurringChargeService implements ICommandHandler {
       return Err(new RecurringChargeAccessDeniedError());
 
     charge.activate();
-    await this.repo.save(charge);
+    await this.repo.transaction(() => this.repo.save(charge));
     return Ok(true);
   }
 }

@@ -1,6 +1,6 @@
 import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
-import { Err, Ok, Result } from 'oxide.ts';
+import { Ok, Result } from 'oxide.ts';
 import { AggregateID } from '@libs/ddd';
 import { VehicleEntity } from '@modules/vehicle/domain/vehicle.entity';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
@@ -18,26 +18,16 @@ export class CreateVehicleService implements ICommandHandler {
   async execute(
     command: CreateVehicleCommand,
   ): Promise<Result<AggregateID, VehicleProfitShareSumError>> {
-    const totalShare = command.participants.reduce(
-      (sum, p) => sum + p.profitShare,
-      0,
-    );
-    // participants here only lists the owner's contacts — the owner's own
-    // share is implicit (100 - sum of contact shares), so contacts must sum
-    // to AT MOST 100, not exactly 100. Same epsilon reasoning as before for
-    // JS floating point rounding.
-    if (totalShare - 100 > 0.001) {
-      return Err(new VehicleProfitShareSumError());
-    }
-
-    const vehicle = VehicleEntity.create({
+    const created = VehicleEntity.create({
       ownerId: command.ownerId,
       name: command.name,
       purchaseDate: command.purchaseDate,
       purchasePrice: command.purchasePrice,
       participants: command.participants,
     });
+    if (created.isErr()) return created;
 
+    const vehicle = created.unwrap();
     await this.vehicleRepo.transaction(
       async () => await this.vehicleRepo.insert(vehicle),
     );

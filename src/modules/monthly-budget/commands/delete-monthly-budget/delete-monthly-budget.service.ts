@@ -35,7 +35,7 @@ export class DeleteMonthlyBudgetService implements ICommandHandler {
     if (!budget.isOwnedBy(command.requesterId))
       return Err(new MonthlyBudgetAccessDeniedError());
 
-    await this.repo.delete(budget);
+    await this.repo.transaction(() => this.repo.delete(budget));
     return Ok(true);
   }
 }

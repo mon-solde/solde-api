@@ -37,7 +37,7 @@ export class UpdateSalaryService implements ICommandHandler {
       return Err(new MonthlyBudgetAccessDeniedError());
 
     budget.updateSalary(command.receivedSalary);
-    await this.repo.save(budget);
+    await this.repo.transaction(() => this.repo.save(budget));
     return Ok(true);
   }
 }

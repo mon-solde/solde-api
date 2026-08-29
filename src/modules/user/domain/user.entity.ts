@@ -28,5 +28,10 @@ export class UserEntity extends AggregateRoot<UserProps> {
     );
   }
 
+  rename(firstName: string, lastName?: string): void {
+    this.props.firstName = firstName;
+    this.props.lastName = lastName;
+  }
+
   validate(): void {}
 }

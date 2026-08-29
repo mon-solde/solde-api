@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Logger, Query } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Result } from 'oxide.ts';
@@ -6,20 +6,16 @@ import { routesV1 } from '@config/app.routes';
 import { Paginated } from '@libs/ddd';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
-import { RecurringChargeEntity } from '../../domain/recurring-charge.entity';
-import { RecurringChargeMapper } from '../../recurring-charge.mapper';
 import { RecurringChargeResponseDto } from '../../dtos/recurring-charge.response.dto';
-import { FindRecurringChargesQuery } from './find-recurring-charges.query-handler';
+import {
+  FindRecurringChargesQuery,
+  RecurringChargeListItem,
+} from './find-recurring-charges.query-handler';
 import { FindRecurringChargesRequestDto } from './find-recurring-charges.request.dto';
 
 @Controller(routesV1.version)
 export class FindRecurringChargesHttpController {
-  private readonly logger = new Logger(FindRecurringChargesHttpController.name);
-
-  constructor(
-    private readonly queryBus: QueryBus,
-    private readonly mapper: RecurringChargeMapper,
-  ) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get(routesV1.recurringCharge.root)
   @ApiOperation({
@@ -30,10 +26,8 @@ export class FindRecurringChargesHttpController {
     @CurrentUser() user: AuthenticatedUser,
     @Query() queryParams: FindRecurringChargesRequestDto,
   ): Promise<Paginated<RecurringChargeResponseDto>> {
-    this.logger.log(`GET /v1/recurring-charges — userId: ${user.id}`);
-
     const result: Result<
-      Paginated<RecurringChargeEntity>,
+      Paginated<RecurringChargeListItem>,
       never
     > = await this.queryBus.execute(
       new FindRecurringChargesQuery({
@@ -49,7 +43,19 @@ export class FindRecurringChargesHttpController {
 
     const page = result.unwrap();
     return new Paginated({
-      data: page.data.map((c) => this.mapper.toResponse(c)),
+      data: page.data.map(
+        (c): RecurringChargeResponseDto => ({
+          id: c.id,
+          createdAt: c.createdAt.toISOString(),
+          updatedAt: c.updatedAt.toISOString(),
+          name: c.name,
+          amount: c.amount,
+          type: c.type,
+          dueDay: c.dueDay ?? undefined,
+          isActive: c.isActive,
+          inactiveAt: c.inactiveAt ?? undefined,
+        }),
+      ),
       count: page.count,
       limit: page.limit,
       page: page.page,

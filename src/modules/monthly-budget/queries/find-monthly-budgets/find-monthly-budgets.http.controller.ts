@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Logger, Query } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Result } from 'oxide.ts';
@@ -6,20 +6,16 @@ import { routesV1 } from '@config/app.routes';
 import { Paginated } from '@libs/ddd';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
-import { MonthlyBudgetEntity } from '../../domain/monthly-budget.entity';
-import { MonthlyBudgetMapper } from '../../monthly-budget.mapper';
 import { MonthlyBudgetResponseDto } from '../../dtos/monthly-budget.response.dto';
-import { FindMonthlyBudgetsQuery } from './find-monthly-budgets.query-handler';
+import {
+  FindMonthlyBudgetsQuery,
+  MonthlyBudgetListItem,
+} from './find-monthly-budgets.query-handler';
 import { FindMonthlyBudgetsRequestDto } from './find-monthly-budgets.request.dto';
 
 @Controller(routesV1.version)
 export class FindMonthlyBudgetsHttpController {
-  private readonly logger = new Logger(FindMonthlyBudgetsHttpController.name);
-
-  constructor(
-    private readonly queryBus: QueryBus,
-    private readonly mapper: MonthlyBudgetMapper,
-  ) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get(routesV1.monthlyBudget.root)
   @ApiOperation({
@@ -31,7 +27,7 @@ export class FindMonthlyBudgetsHttpController {
     @Query() queryParams: FindMonthlyBudgetsRequestDto,
   ): Promise<Paginated<MonthlyBudgetResponseDto>> {
     const result: Result<
-      Paginated<MonthlyBudgetEntity>,
+      Paginated<MonthlyBudgetListItem>,
       never
     > = await this.queryBus.execute(
       new FindMonthlyBudgetsQuery({
@@ -44,7 +40,25 @@ export class FindMonthlyBudgetsHttpController {
 
     const page = result.unwrap();
     return new Paginated({
-      data: page.data.map((b) => this.mapper.toResponse(b)),
+      data: page.data.map(
+        (b): MonthlyBudgetResponseDto => ({
+          id: b.id,
+          createdAt: b.createdAt.toISOString(),
+          updatedAt: b.updatedAt.toISOString(),
+          userId: b.userId,
+          year: b.year,
+          month: b.month,
+          receivedSalary: b.receivedSalary,
+          recurringCharges: b.recurringCharges.map((c) => ({
+            id: c.id,
+            recurringChargeId: c.recurringChargeId ?? undefined,
+            label: c.label,
+            amount: c.amount,
+            type: c.type,
+            dueDay: c.dueDay ?? undefined,
+          })),
+        }),
+      ),
       count: page.count,
       limit: page.limit,
       page: page.page,

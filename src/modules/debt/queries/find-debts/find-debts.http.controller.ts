@@ -1,23 +1,18 @@
-import { Controller, Get, HttpStatus, Logger, Query } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Result } from 'oxide.ts';
 import { routesV1 } from '@config/app.routes';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
-import { DebtMapper } from '../../debt.mapper';
+import { DebtResponseDto } from '../../dtos/debt.response.dto';
 import { DebtPaginatedResponseDto } from '../../dtos/debt.paginated.response.dto';
 import { FindDebtsQuery, FindDebtsResult } from './find-debts.query-handler';
 import { FindDebtsRequestDto } from './find-debts.request.dto';
 
 @Controller(routesV1.version)
 export class FindDebtsHttpController {
-  private readonly logger = new Logger(FindDebtsHttpController.name);
-
-  constructor(
-    private readonly queryBus: QueryBus,
-    private readonly mapper: DebtMapper,
-  ) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get(routesV1.debt.root)
   @ApiOperation({ summary: 'Find all debts for the authenticated user' })
@@ -26,8 +21,6 @@ export class FindDebtsHttpController {
     @CurrentUser() user: AuthenticatedUser,
     @Query() queryParams: FindDebtsRequestDto,
   ): Promise<DebtPaginatedResponseDto> {
-    this.logger.log(`GET /v1/debts — userId: ${user.id}`);
-
     const result: Result<FindDebtsResult, never> = await this.queryBus.execute(
       new FindDebtsQuery({
         userId: user.id,
@@ -44,12 +37,31 @@ export class FindDebtsHttpController {
     );
 
     const { data, count, limit, page, totals } = result.unwrap();
-    this.logger.log(
-      `GET /v1/debts — ${data.length}/${count} dette(s) returned`,
-    );
 
     return new DebtPaginatedResponseDto({
-      data: data.map((debt) => this.mapper.toResponse(debt)),
+      data: data.map(
+        (debt): DebtResponseDto => ({
+          id: debt.id,
+          createdAt: debt.createdAt.toISOString(),
+          updatedAt: debt.updatedAt.toISOString(),
+          lenderId: debt.lenderId,
+          borrowerId: debt.borrowerId,
+          lenderName: debt.lenderName ?? '',
+          borrowerName: debt.borrowerName ?? '',
+          amount: debt.amount,
+          date: debt.date,
+          type: debt.type,
+          description: debt.description,
+          vehicleId: debt.vehicleId,
+          vehicleName: debt.vehicleName,
+          totalRepaid: debt.totalRepaid,
+          remaining: debt.remaining,
+          isRepaid: debt.isRepaid,
+          isManuallySettled: debt.isManuallySettled,
+          isForgiven: debt.isForgiven,
+          repayments: debt.repayments,
+        }),
+      ),
       count,
       limit,
       page,

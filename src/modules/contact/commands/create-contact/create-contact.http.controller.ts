@@ -14,6 +14,7 @@ import { AggregateID } from '@libs/ddd';
 import { ApiErrorResponse } from '@libs/api/api-error.response';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
+import { UserAlreadyExistsError } from '@modules/user/domain/user.errors';
 import { ContactDuplicateNameError } from '../../domain/contact.errors';
 import { CreateContactCommand } from './create-contact.command';
 import { CreateContactRequestDto } from './create-contact.request.dto';
@@ -38,8 +39,10 @@ export class CreateContactHttpController {
       skipDuplicateNameCheck: body.skipDuplicateNameCheck,
     });
 
-    const result: Result<AggregateID, ContactDuplicateNameError> =
-      await this.commandBus.execute(command);
+    const result: Result<
+      AggregateID,
+      ContactDuplicateNameError | UserAlreadyExistsError
+    > = await this.commandBus.execute(command);
 
     return match(result, {
       Ok: (id: string) => new IdResponse(id),
@@ -50,6 +53,9 @@ export class CreateContactHttpController {
             existingContactId: error.existingContactId,
             hidden: error.hidden,
           });
+        }
+        if (error instanceof UserAlreadyExistsError) {
+          throw new ConflictException(error.message);
         }
         throw error;
       },

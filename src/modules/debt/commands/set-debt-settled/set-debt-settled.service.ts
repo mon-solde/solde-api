@@ -31,7 +31,7 @@ export class SetDebtSettledService implements ICommandHandler {
     } else {
       debt.unmarkAsSettled();
     }
-    await this.debtRepo.save(debt);
+    await this.debtRepo.transaction(() => this.debtRepo.save(debt));
 
     return Ok(undefined);
   }

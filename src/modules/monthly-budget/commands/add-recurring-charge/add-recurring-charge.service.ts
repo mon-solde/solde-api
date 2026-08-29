@@ -69,10 +69,12 @@ export class AddRecurringChargeService implements ICommandHandler {
     if (alreadyPresent) return Ok(budget.id);
 
     const id = randomUUID();
-    await this.budgetRepo.addRecurringCharge(budget.id, {
-      id,
-      recurringChargeHistoryId: charge.getProps().currentVersionId,
-    });
+    await this.budgetRepo.transaction(() =>
+      this.budgetRepo.addRecurringCharge(budget.id, {
+        id,
+        recurringChargeHistoryId: charge.getProps().currentVersionId,
+      }),
+    );
 
     return Ok(id);
   }

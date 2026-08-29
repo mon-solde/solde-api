@@ -50,7 +50,7 @@ export class InitMonthService implements ICommandHandler {
       }),
     });
 
-    await this.budgetRepo.insert(budget);
+    await this.budgetRepo.transaction(() => this.budgetRepo.insert(budget));
     return Ok(budget.id);
   }
 }

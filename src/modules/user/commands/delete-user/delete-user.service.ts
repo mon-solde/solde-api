@@ -33,7 +33,9 @@ export class DeleteUserService {
     if (found.isNone()) return Err(new NotFoundException());
     const user = found.unwrap();
     user.delete();
-    const result = await this.userRepo.delete(user);
+    const result = await this.userRepo.transaction(() =>
+      this.userRepo.delete(user),
+    );
     return Ok(result);
   }
 }

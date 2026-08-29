@@ -39,7 +39,7 @@ export class DeleteRecurringChargeService implements ICommandHandler {
     if (!charge.isOwnedBy(command.requesterId))
       return Err(new RecurringChargeAccessDeniedError());
 
-    await this.repo.delete(charge);
+    await this.repo.transaction(() => this.repo.delete(charge));
     return Ok(true);
   }
 }

@@ -3,7 +3,6 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { AggregateID } from '@libs/ddd';
-import { PrismaService } from '@libs/db/prisma.service';
 import { MONTHLY_BUDGET_REPOSITORY } from '../../monthly-budget.di-tokens';
 import { MonthlyBudgetRepositoryPort } from '../../database/monthly-budget.repository.port';
 import {
@@ -27,7 +26,6 @@ export class AddSavingsWithdrawalService implements ICommandHandler {
   constructor(
     @Inject(MONTHLY_BUDGET_REPOSITORY)
     private readonly repo: MonthlyBudgetRepositoryPort,
-    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -47,15 +45,14 @@ export class AddSavingsWithdrawalService implements ICommandHandler {
 
     const id = randomUUID();
 
-    await this.prisma.monthlyBudgetSavingsWithdrawal.create({
-      data: {
+    await this.repo.transaction(() =>
+      this.repo.addSavingsWithdrawal(command.budgetId, {
         id,
-        budgetId: command.budgetId,
         amount: command.amount,
         source: command.destination,
         date: command.withdrawalDate,
-      },
-    });
+      }),
+    );
 
     return Ok(id);
   }

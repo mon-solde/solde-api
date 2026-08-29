@@ -2,6 +2,7 @@ import { AggregateRoot, AggregateID } from '@libs/ddd';
 import { randomUUID } from 'crypto';
 import { eur, toCents } from '@libs/money/money';
 import {
+  CreateExpenseDebtProps,
   CreateManualDebtProps,
   CreateSoldVehicleDebtProps,
   DebtOverrideStatus,
@@ -37,6 +38,17 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
     const props: DebtProps = {
       ...create,
       type: DebtType.SOLD_VEHICLE,
+      repayments: [],
+      overrideStatus: null,
+    };
+    return new DebtEntity({ id, props });
+  }
+
+  static createExpense(create: CreateExpenseDebtProps): DebtEntity {
+    const id = randomUUID();
+    const props: DebtProps = {
+      ...create,
+      type: DebtType.EXPENSE,
       repayments: [],
       overrideStatus: null,
     };

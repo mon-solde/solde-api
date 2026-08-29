@@ -4,10 +4,7 @@ import { Some, None, Option } from 'oxide.ts';
 import { PrismaService } from '@libs/db/prisma.service';
 import { PrismaRepositoryBase } from '@libs/db/prisma-repository.base';
 import { OrderBy, Paginated, PaginatedQueryParams } from '@libs/ddd';
-import {
-  PostgresErrorCode,
-  PrismaErrorCode,
-} from '@libs/db/prisma-error.codes';
+import { PrismaErrorCode } from '@libs/db/prisma-error.codes';
 import { ConflictException } from '@libs/exceptions';
 import { ContactEntity } from '../domain/contact.entity';
 import { ContactMapper } from '../contact.mapper';
@@ -173,9 +170,10 @@ export class ContactRepository
     });
   }
 
-  // Override: a Contact is persisted as a shared User row (base, holds
-  // firstName/lastName/role) plus a nested Contact row (ownerId) — there is
-  // no plain "contact" insert, see prisma/schema.prisma CTI design.
+  // Override: the shared CTI base User row is created separately, by the
+  // user module's own CreateUserCommand (see CreateContactService) — this
+  // only ever inserts the Contact subtype row itself, referencing a User
+  // row that already exists by the time this runs.
   override async insert(
     entity: ContactEntity | ContactEntity[],
   ): Promise<void> {
@@ -185,21 +183,12 @@ export class ContactRepository
     for (const e of entities) {
       const record = this.mapper.toPersistence(e);
       try {
-        await this.client.user.create({
+        await this.client.contact.create({
           data: {
-            id: record.userId,
-            firstName: record.user.firstName,
-            lastName: record.user.lastName,
-            role: 'CONTACT',
+            userId: record.userId,
+            ownerId: record.ownerId,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
-            contact: {
-              create: {
-                ownerId: record.ownerId,
-                createdAt: record.createdAt,
-                updatedAt: record.updatedAt,
-              },
-            },
           },
         });
       } catch (error: any) {
@@ -212,51 +201,26 @@ export class ContactRepository
     }
   }
 
-  // Contact's firstName/lastName actually live on the shared User row.
-  async save(entity: ContactEntity): Promise<void> {
-    const p = entity.getProps();
-    await this.client.user.update({
-      where: { id: entity.id },
-      data: { firstName: p.firstName, lastName: p.lastName ?? null },
-    });
-  }
-
-  // Returns true when the contact was fully erased, false when it only got
-  // hidden (see hideBehindSoftDelete below).
+  // The hard-erase path is decided by the caller (DeleteContactService),
+  // which dispatches user's DeleteUserCommand — erasing the shared User row
+  // takes the Contact row with it (Cascade). This method is only ever
+  // called as the soft-delete fallback, when that dispatch fails because
+  // the contact has real history (debts, expense payments, ...) that must
+  // stay readable — always returns false.
   override async delete(entity: ContactEntity): Promise<boolean> {
     entity.validate();
-
-    const wasFullyErased = await this.tryToEraseCompletely(entity.id);
-    if (!wasFullyErased) {
-      await this.hideBehindSoftDelete(entity.id);
-    }
-
-    await entity.publishEvents(this.logger, this.eventEmitter);
-    return wasFullyErased;
-  }
-
-  // Erasing the shared User row takes the Contact row with it (Cascade).
-  // We try this first instead of checking every table that could reference
-  // this contact (debts, expense payments, ...): Postgres already knows,
-  // and this stays correct even if a new referencing table is added later.
-  private async tryToEraseCompletely(contactId: string): Promise<boolean> {
-    try {
-      await this.client.user.delete({ where: { id: contactId } });
-      return true;
-    } catch (error: any) {
-      if (error.cause?.code === PostgresErrorCode.RestrictViolation) {
-        return false;
-      }
-      throw error;
-    }
-  }
-
-  // Used when the contact has real history (debts, expense payments, ...)
-  // that must stay readable — hides it from lists instead of destroying it.
-  private async hideBehindSoftDelete(contactId: string): Promise<void> {
     await this.client.contact.update({
-      where: { userId: contactId },
+      where: { userId: entity.id },
       data: { deletedAt: new Date() },
     });
+    await entity.publishEvents(this.logger, this.eventEmitter);
+    return false;
+  }
+
+  // Called instead of delete() when the hard-erase dispatch already
+  // succeeded (the Contact row is already gone via Cascade) — nothing left
+  // to persist, just publish the domain event.
+  async publishDeletedEvent(entity: ContactEntity): Promise<void> {
+    await entity.publishEvents(this.logger, this.eventEmitter);
   }
 }

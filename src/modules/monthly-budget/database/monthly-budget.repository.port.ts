@@ -22,4 +22,13 @@ export interface MonthlyBudgetRepositoryPort
     budgetId: string,
     charge: { id: string; recurringChargeHistoryId: string },
   ): Promise<void>;
+  addSavingsWithdrawal(
+    budgetId: string,
+    withdrawal: {
+      id: string;
+      amount: number;
+      source: 'BANK' | 'CASH';
+      date: Date;
+    },
+  ): Promise<void>;
 }

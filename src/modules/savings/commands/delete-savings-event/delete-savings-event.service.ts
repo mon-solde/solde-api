@@ -38,7 +38,7 @@ export class DeleteManualSavingsEventService implements ICommandHandler {
     if (!event.isOwnedBy(command.requesterId))
       return Err(new ManualSavingsEventAccessDeniedError());
 
-    await this.repo.delete(event);
+    await this.repo.transaction(() => this.repo.delete(event));
     return Ok(true);
   }
 }

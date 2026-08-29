@@ -160,4 +160,24 @@ export class MonthlyBudgetRepository
       },
     });
   }
+
+  async addSavingsWithdrawal(
+    budgetId: string,
+    withdrawal: {
+      id: string;
+      amount: number;
+      source: 'BANK' | 'CASH';
+      date: Date;
+    },
+  ): Promise<void> {
+    await this.client.monthlyBudgetSavingsWithdrawal.create({
+      data: {
+        id: withdrawal.id,
+        budgetId,
+        amount: withdrawal.amount,
+        source: withdrawal.source,
+        date: withdrawal.date,
+      },
+    });
+  }
 }

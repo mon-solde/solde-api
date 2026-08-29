@@ -36,6 +36,26 @@ export class RepaymentNotFoundError extends ExceptionBase {
   }
 }
 
+export class RepaymentSplitInvalidError extends ExceptionBase {
+  static readonly message =
+    'bankSplitAmount doit être compris entre 0 et le montant total';
+  readonly code = 'DEBT.REPAYMENT_SPLIT_INVALID';
+
+  constructor(cause?: Error) {
+    super(RepaymentSplitInvalidError.message, cause);
+  }
+}
+
+export class DebtAmountSplitMismatchError extends ExceptionBase {
+  readonly code = 'DEBT.AMOUNT_SPLIT_MISMATCH';
+
+  constructor(bankAmount: number, cashAmount: number, totalAmount: number) {
+    super(
+      `bankAmount (${bankAmount}) + cashAmount (${cashAmount}) doit être égal au montant total (${totalAmount})`,
+    );
+  }
+}
+
 export class InsufficientSavingsError extends ExceptionBase {
   readonly code = 'DEBT.INSUFFICIENT_SAVINGS';
 

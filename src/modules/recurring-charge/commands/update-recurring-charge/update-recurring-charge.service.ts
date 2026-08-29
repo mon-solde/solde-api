@@ -34,12 +34,14 @@ export class UpdateRecurringChargeService implements ICommandHandler {
     // Creates a new version instead of mutating the charge in place — any
     // month already generated keeps referencing the old version, so its
     // figures never change retroactively.
-    await this.repo.createNewVersion(command.chargeId, {
-      name: command.name,
-      amount: command.amount,
-      type: command.type,
-      dueDay: command.dueDay,
-    });
+    await this.repo.transaction(() =>
+      this.repo.createNewVersion(command.chargeId, {
+        name: command.name,
+        amount: command.amount,
+        type: command.type,
+        dueDay: command.dueDay,
+      }),
+    );
 
     return Ok(true);
   }

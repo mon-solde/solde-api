@@ -34,9 +34,8 @@ export class DeleteEventService implements ICommandHandler {
     if (!vehicle.isOwner(command.requesterId))
       return Err(new VehicleAccessDeniedError());
 
-    const deleted = await this.vehicleRepo.deleteVehicleEvent(
-      command.vehicleId,
-      command.eventId,
+    const deleted = await this.vehicleRepo.transaction(() =>
+      this.vehicleRepo.deleteVehicleEvent(command.vehicleId, command.eventId),
     );
     if (!deleted) return Err(new VehicleEventNotFoundError());
 

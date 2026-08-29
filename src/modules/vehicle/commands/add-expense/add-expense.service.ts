@@ -1,5 +1,5 @@
 import { Inject } from '@nestjs/common';
-import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { VehicleRepositoryPort } from '@modules/vehicle/database/vehicle.repository.port';
@@ -11,6 +11,7 @@ import {
   VehicleAlreadySoldError,
   VehicleNotFoundError,
 } from '@modules/vehicle/domain/vehicle.errors';
+import { CreateExpenseDebtsCommand } from '@modules/debt/commands/create-expense-debts/create-expense-debts.service';
 import { AddExpenseCommand } from './add-expense.command';
 
 @CommandHandler(AddExpenseCommand)
@@ -18,6 +19,7 @@ export class AddExpenseService implements ICommandHandler {
   constructor(
     @Inject(VEHICLE_REPOSITORY)
     private readonly vehicleRepo: VehicleRepositoryPort,
+    private readonly commandBus: CommandBus,
   ) {}
 
   async execute(
@@ -81,21 +83,23 @@ export class AddExpenseService implements ICommandHandler {
       });
 
       if (delegatedPayers.length > 0) {
-        await this.vehicleRepo.createExpenseDebts(
-          expenseId,
-          delegatedPayers.map((p) => {
-            // Payer is owed (lender), the person it's imputed to owes
-            // (borrower) — whichever of the two is the owner decides the
-            // role.
-            const ownerIsPayer = p.payerId === vehicle.ownerId;
-            return {
-              debtId: randomUUID(),
-              ownerId: vehicle.ownerId,
-              contactId: ownerIsPayer ? p.imputedToId! : p.payerId,
-              role: ownerIsPayer ? 'LENDER' : 'BORROWER',
-              amount: p.amount,
-              date: command.date,
-            };
+        await this.commandBus.execute(
+          new CreateExpenseDebtsCommand({
+            expenseId,
+            debts: delegatedPayers.map((p) => {
+              // Payer is owed (lender), the person it's imputed to owes
+              // (borrower) — whichever of the two is the owner decides the
+              // role.
+              const ownerIsPayer = p.payerId === vehicle.ownerId;
+              return {
+                debtId: randomUUID(),
+                ownerId: vehicle.ownerId,
+                contactId: ownerIsPayer ? p.imputedToId! : p.payerId,
+                role: ownerIsPayer ? 'LENDER' : 'BORROWER',
+                amount: p.amount,
+                date: command.date,
+              };
+            }),
           }),
         );
       }

@@ -16,6 +16,7 @@ export class UserMapper
       updatedAt: copy.updatedAt,
       firstName: copy.firstName,
       lastName: copy.lastName ?? null,
+      role: copy.role,
     };
   }
 
@@ -27,6 +28,7 @@ export class UserMapper
       props: {
         firstName: record.firstName,
         lastName: record.lastName ?? undefined,
+        role: record.role,
       },
     });
   }

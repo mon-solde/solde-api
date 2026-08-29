@@ -31,7 +31,7 @@ export class SetDebtForgivenService implements ICommandHandler {
     } else {
       debt.unforgive();
     }
-    await this.debtRepo.save(debt);
+    await this.debtRepo.transaction(() => this.debtRepo.save(debt));
 
     return Ok(undefined);
   }

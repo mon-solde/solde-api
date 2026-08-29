@@ -35,7 +35,9 @@ export class ReactivateContactService implements ICommandHandler {
     if (contact.ownerId !== command.requesterId)
       return Err(new ContactAccessDeniedError());
 
-    await this.contactRepo.reactivate(command.contactId);
+    await this.contactRepo.transaction(() =>
+      this.contactRepo.reactivate(command.contactId),
+    );
     return Ok(true);
   }
 }

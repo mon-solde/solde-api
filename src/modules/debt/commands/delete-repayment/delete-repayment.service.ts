@@ -1,7 +1,6 @@
 import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
-import { PrismaService } from '@libs/db/prisma.service';
 import { DEBT_REPOSITORY } from '../../debt.di-tokens';
 import { DebtRepositoryPort } from '../../database/debt.repository.port';
 import {
@@ -16,7 +15,6 @@ export class DeleteRepaymentService implements ICommandHandler {
   constructor(
     @Inject(DEBT_REPOSITORY)
     private readonly debtRepo: DebtRepositoryPort,
-    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -34,12 +32,15 @@ export class DeleteRepaymentService implements ICommandHandler {
     if (!debt.isOwnedBy(command.requesterId))
       return Err(new DebtAccessDeniedError());
 
-    const repayment = await this.prisma.repayment.findFirst({
-      where: { id: command.repaymentId, debtId: command.debtId },
-    });
+    const repayment = await this.debtRepo.findRepayment(
+      command.debtId,
+      command.repaymentId,
+    );
     if (!repayment) return Err(new RepaymentNotFoundError());
 
-    await this.prisma.repayment.delete({ where: { id: command.repaymentId } });
+    await this.debtRepo.transaction(() =>
+      this.debtRepo.deleteRepayment(command.repaymentId),
+    );
 
     return Ok(undefined);
   }

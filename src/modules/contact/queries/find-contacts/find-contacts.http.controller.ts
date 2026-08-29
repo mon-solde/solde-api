@@ -6,18 +6,16 @@ import { routesV1 } from '@config/app.routes';
 import { Paginated } from '@libs/ddd';
 import { CurrentUser } from '@modules/auth/current-user.decorator';
 import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
-import { ContactEntity } from '../../domain/contact.entity';
-import { ContactMapper } from '../../contact.mapper';
 import { ContactResponseDto } from '../../dtos/contact.response.dto';
-import { FindContactsQuery } from './find-contacts.query-handler';
+import {
+  ContactListItem,
+  FindContactsQuery,
+} from './find-contacts.query-handler';
 import { FindContactsRequestDto } from './find-contacts.request.dto';
 
 @Controller(routesV1.version)
 export class FindContactsHttpController {
-  constructor(
-    private readonly queryBus: QueryBus,
-    private readonly mapper: ContactMapper,
-  ) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get(routesV1.contact.root)
   @ApiOperation({ summary: 'Find all contacts of the authenticated account' })
@@ -27,7 +25,7 @@ export class FindContactsHttpController {
     @Query() queryParams: FindContactsRequestDto,
   ): Promise<Paginated<ContactResponseDto>> {
     const result: Result<
-      Paginated<ContactEntity>,
+      Paginated<ContactListItem>,
       never
     > = await this.queryBus.execute(
       new FindContactsQuery({
@@ -41,7 +39,16 @@ export class FindContactsHttpController {
 
     const page = result.unwrap();
     return new Paginated({
-      data: page.data.map((contact) => this.mapper.toResponse(contact)),
+      data: page.data.map(
+        (contact): ContactResponseDto => ({
+          id: contact.id,
+          createdAt: contact.createdAt.toISOString(),
+          updatedAt: contact.updatedAt.toISOString(),
+          ownerId: contact.ownerId,
+          firstName: contact.firstName,
+          lastName: contact.lastName ?? undefined,
+        }),
+      ),
       count: page.count,
       limit: page.limit,
       page: page.page,

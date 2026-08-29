@@ -39,34 +39,14 @@ export class UpdateVehicleParticipantsService implements ICommandHandler {
       return Err(new VehicleAccessDeniedError());
     if (!vehicle.isActive) return Err(new VehicleAlreadySoldError());
 
-    // This endpoint only updates existing shares — it can't add or remove a
-    // participant, so the payload must name exactly the same contacts as
-    // the vehicle already has, no more, no fewer.
-    const currentContactIds = new Set(
-      vehicle.participants.map((p) => p.contactId),
-    );
-    const payloadContactIds = new Set(
-      command.participants.map((p) => p.contactId),
-    );
-    const sameSet =
-      currentContactIds.size === payloadContactIds.size &&
-      [...currentContactIds].every((id) => payloadContactIds.has(id));
-    if (!sameSet) return Err(new VehicleParticipantMismatchError());
+    const result = vehicle.updateParticipantShares(command.participants);
+    if (result.isErr()) return result;
 
-    // Same reasoning as vehicle creation: contacts' shares can add up to
-    // less than 100 (the owner keeps the rest), never more. 0.001 of slack
-    // absorbs floating point rounding only.
-    const totalShare = command.participants.reduce(
-      (sum, p) => sum + p.profitShare,
-      0,
-    );
-    if (totalShare - 100 > 0.001) {
-      return Err(new VehicleProfitShareSumError());
-    }
-
-    await this.vehicleRepo.updateParticipantShares(
-      command.vehicleId,
-      command.participants,
+    await this.vehicleRepo.transaction(() =>
+      this.vehicleRepo.updateParticipantShares(
+        command.vehicleId,
+        command.participants,
+      ),
     );
 
     return Ok(undefined);

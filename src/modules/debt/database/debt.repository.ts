@@ -6,7 +6,11 @@ import { OrderBy, Paginated, PaginatedQueryParams } from '@libs/ddd';
 import { Some, None, Option } from 'oxide.ts';
 import { DebtEntity } from '../domain/debt.entity';
 import { DebtMapper } from '../debt.mapper';
-import { DebtRepositoryPort, DebtFilters } from './debt.repository.port';
+import {
+  DebtRepositoryPort,
+  DebtFilters,
+  CreateDebtParams,
+} from './debt.repository.port';
 
 export type RepaymentModel = {
   id: string;
@@ -192,6 +196,118 @@ export class DebtRepository
       orderBy: this.buildOrderBy(orderBy),
     });
     return results.map((r) => this.mapper.toDomain(r as any));
+  }
+
+  async addRepayment(
+    debtId: string,
+    repayment: {
+      id: string;
+      amount: number;
+      date: Date;
+      note?: string;
+      source: 'BANK' | 'CASH';
+    },
+  ): Promise<void> {
+    await this.client.repayment.create({
+      data: {
+        id: repayment.id,
+        debtId,
+        amount: repayment.amount,
+        date: repayment.date,
+        note: repayment.note ?? null,
+        source: repayment.source,
+      },
+    });
+  }
+
+  async deleteRepayment(repaymentId: string): Promise<void> {
+    await this.client.repayment.delete({ where: { id: repaymentId } });
+  }
+
+  async findRepayment(
+    debtId: string,
+    repaymentId: string,
+  ): Promise<{ id: string } | null> {
+    return this.client.repayment.findFirst({
+      where: { id: repaymentId, debtId },
+      select: { id: true },
+    });
+  }
+
+  async insertManual(params: {
+    id: string;
+    ownerId: string;
+    contactId: string;
+    role: 'LENDER' | 'BORROWER';
+    amount: number;
+    date: Date;
+    description?: string;
+    bankAmount?: number;
+    cashAmount?: number;
+  }): Promise<void> {
+    await this.client.debt.create({
+      data: {
+        id: params.id,
+        ownerId: params.ownerId,
+        contactId: params.contactId,
+        role: params.role,
+        amount: params.amount,
+        date: params.date,
+        type: 'MANUAL',
+        manualDebt: {
+          create: {
+            description: params.description ?? null,
+            bankAmount: params.bankAmount ? params.bankAmount : null,
+            cashAmount: params.cashAmount ? params.cashAmount : null,
+          },
+        },
+      },
+    });
+  }
+
+  async insertSoldVehicleDebts(
+    soldVehicleId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void> {
+    for (const d of debts) {
+      await this.client.debt.create({
+        data: {
+          id: d.debtId,
+          ownerId: d.ownerId,
+          contactId: d.contactId,
+          role: d.role,
+          amount: d.amount,
+          date: d.date,
+          type: 'SOLD_VEHICLE',
+          soldVehicleDebt: { create: { soldVehicleId } },
+        },
+      });
+    }
+  }
+
+  async insertExpenseDebts(
+    expenseId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void> {
+    for (const d of debts) {
+      await this.client.debt.create({
+        data: {
+          id: d.debtId,
+          ownerId: d.ownerId,
+          contactId: d.contactId,
+          role: d.role,
+          amount: d.amount,
+          date: d.date,
+          type: 'EXPENSE',
+          expenseDebt: { create: { expenseId } },
+        },
+      });
+    }
+  }
+
+  async deleteByIds(debtIds: string[]): Promise<void> {
+    if (debtIds.length === 0) return;
+    await this.client.debt.deleteMany({ where: { id: { in: debtIds } } });
   }
 
   async save(entity: DebtEntity): Promise<void> {

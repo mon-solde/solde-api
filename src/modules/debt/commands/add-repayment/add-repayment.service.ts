@@ -1,15 +1,15 @@
-import { BadRequestException, Inject } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Err, Ok, Result } from 'oxide.ts';
 import { randomUUID } from 'crypto';
 import { AggregateID } from '@libs/ddd';
-import { PrismaService } from '@libs/db/prisma.service';
 import { DEBT_REPOSITORY } from '../../debt.di-tokens';
 import { DebtRepositoryPort } from '../../database/debt.repository.port';
 import {
   DebtAccessDeniedError,
   DebtNotFoundError,
   DebtRepaymentExceedsAmountError,
+  RepaymentSplitInvalidError,
 } from '../../domain/debt.errors';
 import { AddRepaymentCommand } from './add-repayment.command';
 
@@ -18,7 +18,6 @@ export class AddRepaymentService implements ICommandHandler {
   constructor(
     @Inject(DEBT_REPOSITORY)
     private readonly debtRepo: DebtRepositoryPort,
-    private readonly prisma: PrismaService,
   ) {}
 
   async execute(
@@ -29,6 +28,7 @@ export class AddRepaymentService implements ICommandHandler {
       | DebtNotFoundError
       | DebtAccessDeniedError
       | DebtRepaymentExceedsAmountError
+      | RepaymentSplitInvalidError
     >
   > {
     const found = await this.debtRepo.findOneById(command.debtId);
@@ -44,48 +44,40 @@ export class AddRepaymentService implements ICommandHandler {
       const bankSplitAmount = command.bankSplitAmount ?? 0;
       const cashAmount = command.amount - bankSplitAmount;
       if (bankSplitAmount <= 0 || bankSplitAmount >= command.amount) {
-        throw new BadRequestException(
-          'bankSplitAmount doit être compris entre 0 et le montant total.',
-        );
+        return Err(new RepaymentSplitInvalidError());
       }
       const bankId = randomUUID();
       const cashId = randomUUID();
-      await this.prisma.$transaction([
-        this.prisma.repayment.create({
-          data: {
-            id: bankId,
-            debtId: command.debtId,
-            amount: bankSplitAmount,
-            date: command.date,
-            note: command.note ?? null,
-            source: 'BANK',
-          },
-        }),
-        this.prisma.repayment.create({
-          data: {
-            id: cashId,
-            debtId: command.debtId,
-            amount: cashAmount,
-            date: command.date,
-            note: command.note ?? null,
-            source: 'CASH',
-          },
-        }),
-      ]);
+      await this.debtRepo.transaction(async () => {
+        await this.debtRepo.addRepayment(command.debtId, {
+          id: bankId,
+          amount: bankSplitAmount,
+          date: command.date,
+          note: command.note,
+          source: 'BANK',
+        });
+        await this.debtRepo.addRepayment(command.debtId, {
+          id: cashId,
+          amount: cashAmount,
+          date: command.date,
+          note: command.note,
+          source: 'CASH',
+        });
+      });
       return Ok(bankId);
     }
 
+    const source = command.source;
     const id = randomUUID();
-    await this.prisma.repayment.create({
-      data: {
+    await this.debtRepo.transaction(() =>
+      this.debtRepo.addRepayment(command.debtId, {
         id,
-        debtId: command.debtId,
         amount: command.amount,
         date: command.date,
-        note: command.note ?? null,
-        source: command.source,
-      },
-    });
+        note: command.note,
+        source,
+      }),
+    );
 
     return Ok(id);
   }

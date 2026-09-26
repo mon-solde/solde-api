@@ -18,15 +18,6 @@ export class DebtAccessDeniedError extends ExceptionBase {
   }
 }
 
-export class DebtRepaymentExceedsAmountError extends ExceptionBase {
-  static readonly message = 'Repayment amount exceeds remaining debt';
-  readonly code = 'DEBT.REPAYMENT_EXCEEDS_AMOUNT';
-
-  constructor(cause?: Error) {
-    super(DebtRepaymentExceedsAmountError.message, cause);
-  }
-}
-
 export class RepaymentNotFoundError extends ExceptionBase {
   static readonly message = 'Repayment not found';
   readonly code = 'DEBT.REPAYMENT_NOT_FOUND';

@@ -6,7 +6,6 @@ import {
   NotFoundException,
   Param,
   Post,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -20,7 +19,6 @@ import { AuthenticatedUser } from '@modules/auth/domain/authenticated-user';
 import {
   DebtAccessDeniedError,
   DebtNotFoundError,
-  DebtRepaymentExceedsAmountError,
 } from '../../domain/debt.errors';
 import { AddRepaymentCommand } from './add-repayment.command';
 import { AddRepaymentRequestDto } from './add-repayment.request.dto';
@@ -34,10 +32,6 @@ export class AddRepaymentHttpController {
   @ApiResponse({ status: HttpStatus.CREATED, type: IdResponse })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, type: ApiErrorResponse })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, type: ApiErrorResponse })
-  @ApiResponse({
-    status: HttpStatus.UNPROCESSABLE_ENTITY,
-    type: ApiErrorResponse,
-  })
   async addRepayment(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') debtId: string,
@@ -45,9 +39,7 @@ export class AddRepaymentHttpController {
   ): Promise<IdResponse> {
     const result: Result<
       AggregateID,
-      | DebtNotFoundError
-      | DebtAccessDeniedError
-      | DebtRepaymentExceedsAmountError
+      DebtNotFoundError | DebtAccessDeniedError
     > = await this.commandBus.execute(
       new AddRepaymentCommand({
         debtId,
@@ -67,8 +59,6 @@ export class AddRepaymentHttpController {
           throw new NotFoundException(error.message);
         if (error instanceof DebtAccessDeniedError)
           throw new ForbiddenException(error.message);
-        if (error instanceof DebtRepaymentExceedsAmountError)
-          throw new UnprocessableEntityException(error.message);
         throw error;
       },
     });

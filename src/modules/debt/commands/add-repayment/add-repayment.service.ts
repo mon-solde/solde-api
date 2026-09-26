@@ -8,7 +8,6 @@ import { DebtRepositoryPort } from '../../database/debt.repository.port';
 import {
   DebtAccessDeniedError,
   DebtNotFoundError,
-  DebtRepaymentExceedsAmountError,
   RepaymentSplitInvalidError,
 } from '../../domain/debt.errors';
 import { AddRepaymentCommand } from './add-repayment.command';
@@ -25,10 +24,7 @@ export class AddRepaymentService implements ICommandHandler {
   ): Promise<
     Result<
       AggregateID,
-      | DebtNotFoundError
-      | DebtAccessDeniedError
-      | DebtRepaymentExceedsAmountError
-      | RepaymentSplitInvalidError
+      DebtNotFoundError | DebtAccessDeniedError | RepaymentSplitInvalidError
     >
   > {
     const found = await this.debtRepo.findOneById(command.debtId);
@@ -37,8 +33,9 @@ export class AddRepaymentService implements ICommandHandler {
     const debt = found.unwrap();
     if (!debt.isOwnedBy(command.requesterId))
       return Err(new DebtAccessDeniedError());
-    if (!debt.canAcceptRepayment(command.amount))
-      return Err(new DebtRepaymentExceedsAmountError());
+    // No cap on the amount: repaying more than what's owed is legitimate
+    // (e.g. rounding up, or a lender who won't take the difference back).
+    // The front asks for confirmation before sending an overpayment.
 
     if (command.source === 'BOTH') {
       const bankSplitAmount = command.bankSplitAmount ?? 0;

@@ -11,14 +11,6 @@ import {
   RepaymentProps,
 } from './debt.types';
 
-// How far a repayment may overshoot what's actually owed and still be
-// accepted — someone rounding 9,98€ up to 10€ shouldn't be rejected. A
-// fixed euro amount rather than a gap the debt is ever auto-closed on: a
-// partial repayment always leaves the debt open no matter how small the
-// remainder — see isRepaid. Only markAsSettled()/forgive() close a debt
-// that isn't fully (or over-)paid.
-const OVERPAYMENT_TOLERANCE_CENTS = 1000; // 10€, exclusive
-
 export class DebtEntity extends AggregateRoot<DebtProps> {
   protected readonly _id: AggregateID;
 
@@ -120,10 +112,6 @@ export class DebtEntity extends AggregateRoot<DebtProps> {
 
   unforgive(): void {
     if (this.isForgiven) this.props.overrideStatus = null;
-  }
-
-  canAcceptRepayment(amount: number): boolean {
-    return amount - this.remaining < OVERPAYMENT_TOLERANCE_CENTS;
   }
 
   isOwnedBy(userId: string): boolean {

@@ -7,6 +7,7 @@ import {
   randomAmount,
   randomInt,
   toCents,
+  yesterday,
 } from './utils';
 
 const EVENT_COUNT = 28;
@@ -52,12 +53,12 @@ export async function seedInitialSavings(api: ApiClient): Promise<void> {
 
 export async function seedSavings(api: ApiClient): Promise<void> {
   const rng = createRng(19);
-  const now = new Date();
+  const latest = yesterday();
 
   let date = monthsAgo(15);
   for (let i = 0; i < EVENT_COUNT; i++) {
     date = addDays(date, randomInt(rng, 10, 25));
-    if (date > now) date = now;
+    if (date > latest) date = latest;
 
     const kind = rng() < 0.6 ? 'ADDITION' : 'WITHDRAWAL';
     const label = pick(

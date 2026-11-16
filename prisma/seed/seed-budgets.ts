@@ -1,5 +1,12 @@
 import type { ApiClient } from './api-client';
-import { createRng, pick, randomAmount, randomInt, toCents } from './utils';
+import {
+  createRng,
+  pick,
+  randomAmount,
+  randomInt,
+  toCents,
+  yesterday,
+} from './utils';
 
 const MONTHS_OF_HISTORY = 15;
 
@@ -117,11 +124,15 @@ async function seedMonth(
     await api.create(`/v1/monthly-budgets/${budgetId}/savings-withdrawals`, {
       amount: toCents(randomAmount(rng, 80, 300)),
       destination: pick(rng, ['BANK', 'CASH']),
-      withdrawalDate: new Date(
-        year,
-        month - 1,
-        randomInt(rng, 5, 25),
+      withdrawalDate: capAtYesterday(
+        new Date(year, month - 1, randomInt(rng, 5, 25)),
       ).toISOString(),
     });
   }
+}
+
+// The current month's withdrawal day can fall after today.
+function capAtYesterday(date: Date): Date {
+  const latest = yesterday();
+  return date > latest ? latest : date;
 }

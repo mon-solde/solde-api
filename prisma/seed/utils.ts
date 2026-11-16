@@ -67,6 +67,13 @@ export function daysAgo(days: number): Date {
   return d;
 }
 
+// Latest date the seed is allowed to put on anything that shows up in the
+// app's history (savings, repayments, ...): yesterday, so a demo never opens
+// on entries dated today.
+export function yesterday(): Date {
+  return daysAgo(1);
+}
+
 export function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);

@@ -9,6 +9,7 @@ import {
   randomInt,
   splitAmount,
   toCents,
+  yesterday,
   type Rng,
 } from './utils';
 
@@ -198,10 +199,10 @@ async function addRepayments(
   const parts = splitAmount(repaidAmount, repaymentCount);
 
   let repaymentDate = debtDate;
-  const now = new Date();
+  const latest = yesterday();
   for (const part of parts) {
     repaymentDate = addDays(repaymentDate, randomInt(rng, 5, 40));
-    if (repaymentDate > now) repaymentDate = now;
+    if (repaymentDate > latest) repaymentDate = latest;
     await api.create(`/v1/debts/${debtId}/repayments`, {
       amount: toCents(part),
       date: repaymentDate.toISOString(),

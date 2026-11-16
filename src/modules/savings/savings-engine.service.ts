@@ -7,30 +7,23 @@ import {
   sumAmounts,
 } from '@modules/vehicle/domain/profit-sharing';
 import {
+  SavingsEntryDetails,
   SavingsMovementKind,
   SavingsSource,
 } from './domain/savings-event.types';
-
-export type SavingsSourceType =
-  | 'DEBT'
-  | 'REPAYMENT'
-  | 'BUDGET'
-  | 'MANUAL'
-  | 'VEHICLE_SALE';
 
 export interface SavingsHistoryItem {
   id: string;
   kind: SavingsMovementKind;
   source: SavingsSource;
   amount: number;
-  label: string;
+  details: SavingsEntryDetails;
   date: Date;
   // Same-day entries (e.g. a loan and its same-day repayment) can't be
   // ordered by `date` alone, since it only carries day precision — this
   // breaks the tie with the record's real creation instant, so a repayment
   // never sorts before the loan it belongs to.
   createdAt: Date;
-  sourceType: SavingsSourceType;
   note?: string;
 }
 
@@ -55,21 +48,6 @@ export function computeBalances(
   }
   return { bank, cash, total: bank + cash };
 }
-
-const FRENCH_MONTHS = [
-  'janvier',
-  'février',
-  'mars',
-  'avril',
-  'mai',
-  'juin',
-  'juillet',
-  'août',
-  'septembre',
-  'octobre',
-  'novembre',
-  'décembre',
-];
 
 // Cette page répond à une seule question : combien d'argent qui
 // m'appartient vraiment puis-je dépenser maintenant ? L'argent emprunté
@@ -247,8 +225,10 @@ export class SavingsEngine {
     const items: SavingsHistoryItem[] = [];
 
     for (const debt of lentDebts) {
-      const name = debt.contact.user.firstName;
-      const label = `Prêt à ${name}`;
+      const details: SavingsEntryDetails = {
+        type: 'DEBT',
+        contactName: debt.contact.user.firstName,
+      };
       const bankAmount = debt.manualDebt?.bankAmount ?? 0;
       const cashAmount = debt.manualDebt?.cashAmount ?? 0;
       if (bankAmount > 0)
@@ -257,10 +237,9 @@ export class SavingsEngine {
           kind: 'WITHDRAWAL',
           source: 'BANK',
           amount: bankAmount,
-          label,
+          details,
           date: debt.date,
           createdAt: debt.createdAt,
-          sourceType: 'DEBT',
         });
       if (cashAmount > 0)
         items.push({
@@ -268,29 +247,27 @@ export class SavingsEngine {
           kind: 'WITHDRAWAL',
           source: 'CASH',
           amount: cashAmount,
-          label,
+          details,
           date: debt.date,
           createdAt: debt.createdAt,
-          sourceType: 'DEBT',
         });
     }
 
     for (const r of lenderRepayments) {
-      const name = r.debt.contact.user.firstName;
-      const vehicleName = r.debt.soldVehicleDebt?.soldVehicle.vehicle.name;
-      const label = vehicleName
-        ? `Reversement de ${name} — ${vehicleName}`
-        : `Remboursement de ${name}`;
+      const details: SavingsEntryDetails = {
+        type: 'REPAYMENT',
+        contactName: r.debt.contact.user.firstName,
+        vehicleName: r.debt.soldVehicleDebt?.soldVehicle.vehicle.name,
+      };
       items.push({
         id: r.id,
         kind: 'ADDITION',
         source: r.source as SavingsSource,
         amount: r.amount,
-        label,
+        details,
         note: r.note ?? undefined,
         date: r.date,
         createdAt: r.createdAt,
-        sourceType: 'REPAYMENT',
       });
     }
 
@@ -300,12 +277,13 @@ export class SavingsEngine {
         kind: 'ADDITION',
         source: w.source as SavingsSource,
         amount: w.amount,
-        label: `Épargne de ${FRENCH_MONTHS[w.budget.month - 1]} ${
-          w.budget.year
-        }`,
+        details: {
+          type: 'BUDGET',
+          year: w.budget.year,
+          month: w.budget.month,
+        },
         date: w.date,
         createdAt: w.createdAt,
-        sourceType: 'BUDGET',
       });
     }
 
@@ -315,10 +293,9 @@ export class SavingsEngine {
         kind: m.kind as SavingsMovementKind,
         source: m.source as SavingsSource,
         amount: m.amount,
-        label: m.label,
+        details: { type: 'MANUAL', label: m.label },
         date: m.date,
         createdAt: m.createdAt,
-        sourceType: 'MANUAL',
       });
     }
 
@@ -330,17 +307,19 @@ export class SavingsEngine {
         kind: 'WITHDRAWAL',
         source: payer.source as SavingsSource,
         amount: payer.amount,
-        label: `${payer.expense.label} — ${payer.expense.vehicle.name}`,
+        details: {
+          type: 'VEHICLE_EXPENSE',
+          expenseLabel: payer.expense.label,
+          vehicleName: payer.expense.vehicle.name,
+        },
         date: payer.expense.date,
         createdAt: payer.expense.createdAt,
-        sourceType: 'VEHICLE_SALE',
       });
     }
 
     for (const vehicle of vehicleSales) {
       if (!vehicle.soldVehicle) continue;
 
-      const label = `Vente de ${vehicle.name}`;
       const bankAmount = vehicle.soldVehicle.bankAmount ?? 0;
       const cashAmount = vehicle.soldVehicle.cashAmount ?? 0;
       const salePrice = vehicle.soldVehicle.salePrice;
@@ -382,10 +361,9 @@ export class SavingsEngine {
         kind: 'ADDITION',
         source: ownerSource,
         amount: ownerShareAmount,
-        label,
+        details: { type: 'VEHICLE_SALE', vehicleName: vehicle.name },
         date: vehicle.soldVehicle.soldAt,
         createdAt: vehicle.soldVehicle.createdAt,
-        sourceType: 'VEHICLE_SALE',
       });
     }
 

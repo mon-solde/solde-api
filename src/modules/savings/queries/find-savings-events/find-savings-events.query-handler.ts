@@ -7,6 +7,7 @@ import {
   SavingsHistoryItem,
   computeBalances,
 } from '../../savings-engine.service';
+import { searchableText } from '../../domain/savings-event.types';
 
 export class FindSavingsHistoryQuery extends PaginatedQueryBase {
   readonly userId: string;
@@ -39,7 +40,9 @@ function matchesFilters(
   if (query.source && item.source !== query.source) return false;
   if (
     query.search &&
-    !item.label.toLowerCase().includes(query.search.toLowerCase())
+    !searchableText(item.details)
+      .toLowerCase()
+      .includes(query.search.toLowerCase())
   )
     return false;
   return true;

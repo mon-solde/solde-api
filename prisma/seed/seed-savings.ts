@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import type { PrismaClient } from '../../src/generated/prisma/client';
+import type { ApiClient } from './api-client';
 import {
   addDays,
   createRng,
@@ -13,32 +12,49 @@ import {
 const EVENT_COUNT = 28;
 
 const ADDITION_LABELS = [
-  'Virement épargne mensuel',
-  'Prime versée',
-  'Complément livret',
-  'Épargne du mois',
-  'Remboursement mis de côté',
-  'Vente occasion sur Leboncoin',
+  'Monthly savings transfer',
+  'Bonus received',
+  'Savings account top-up',
+  'Savings of the month',
+  'Refund set aside',
+  'Second-hand sale on Craigslist',
 ];
 
 const WITHDRAWAL_LABELS = [
-  'Retrait pour vacances',
-  'Achat imprévu',
-  'Travaux appartement',
-  'Cadeau de fin d’année',
-  'Réparation ordinateur',
-  'Avance sur loyer',
+  'Withdrawal for holidays',
+  'Unexpected purchase',
+  'Apartment renovation',
+  'Year-end gift',
+  'Computer repair',
+  'Rent advance',
 ];
 
-export async function seedSavings(
-  prisma: PrismaClient,
-  userId: string,
-): Promise<void> {
+// Lending money and paying vehicle expenses is refused by the API when the
+// bank/cash savings can't cover it, so the owner starts with a starting
+// balance. Must run before vehicles, expenses and debts.
+export async function seedInitialSavings(api: ApiClient): Promise<void> {
+  const date = monthsAgo(16).toISOString();
+  await api.create('/v1/savings/events', {
+    kind: 'ADDITION',
+    source: 'BANK',
+    amount: toCents(35000),
+    label: 'Starting savings',
+    date,
+  });
+  await api.create('/v1/savings/events', {
+    kind: 'ADDITION',
+    source: 'CASH',
+    amount: toCents(5000),
+    label: 'Starting cash',
+    date,
+  });
+}
+
+export async function seedSavings(api: ApiClient): Promise<void> {
   const rng = createRng(19);
-  const start = monthsAgo(15);
   const now = new Date();
 
-  let date = start;
+  let date = monthsAgo(15);
   for (let i = 0; i < EVENT_COUNT; i++) {
     date = addDays(date, randomInt(rng, 10, 25));
     if (date > now) date = now;
@@ -53,16 +69,12 @@ export async function seedSavings(
         ? randomAmount(rng, 80, 400)
         : randomAmount(rng, 50, 350);
 
-    await prisma.manualSavingsEvent.create({
-      data: {
-        id: randomUUID(),
-        userId,
-        kind,
-        source: pick(rng, ['BANK', 'CASH']),
-        amount: toCents(amount),
-        label,
-        date,
-      },
+    await api.create('/v1/savings/events', {
+      kind,
+      source: pick(rng, ['BANK', 'CASH']),
+      amount: toCents(amount),
+      label,
+      date: date.toISOString(),
     });
   }
 }

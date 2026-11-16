@@ -1,7 +1,6 @@
-import { randomUUID } from 'crypto';
-import type { PrismaClient } from '../../src/generated/prisma/client';
+import type { ApiClient } from './api-client';
 import type { SeededContact } from './seed-contacts';
-import { dec, monthsAgo, toCents } from './utils';
+import { monthsAgo, toCents } from './utils';
 
 export type SeededVehicleParticipant = {
   contactId: string;
@@ -12,13 +11,13 @@ export type SeededVehicle = {
   id: string;
   name: string;
   purchaseDate: Date;
+  // In euros.
   purchasePrice: number;
   participants: SeededVehicleParticipant[];
 };
 
 export async function seedVehicles(
-  prisma: PrismaClient,
-  ownerId: string,
+  api: ApiClient,
   contacts: SeededContact[],
 ): Promise<SeededVehicle[]> {
   const byName = (firstName: string) => {
@@ -27,9 +26,8 @@ export async function seedVehicles(
     return contact.id;
   };
 
-  const vehicles: SeededVehicle[] = [
+  const definitions: Omit<SeededVehicle, 'id'>[] = [
     {
-      id: randomUUID(),
       name: 'Peugeot 208',
       purchaseDate: monthsAgo(14, 3),
       purchasePrice: 11500,
@@ -37,18 +35,16 @@ export async function seedVehicles(
       participants: [],
     },
     {
-      id: randomUUID(),
       name: 'Renault Clio',
       purchaseDate: monthsAgo(13, 10),
       purchasePrice: 9500,
+      // Owner keeps the remaining 50 — never a stored participant.
       participants: [
         { contactId: byName('Julien'), profitShare: 30 },
         { contactId: byName('Camille'), profitShare: 20 },
       ],
-      // Owner keeps the remaining 50 — never a stored participant row.
     },
     {
-      id: randomUUID(),
       name: 'Citroën C3',
       purchaseDate: monthsAgo(8, 20),
       purchasePrice: 8200,
@@ -56,66 +52,53 @@ export async function seedVehicles(
     },
   ];
 
-  for (const vehicle of vehicles) {
-    await prisma.vehicle.create({
-      data: {
-        id: vehicle.id,
-        ownerId,
-        name: vehicle.name,
-        purchaseDate: vehicle.purchaseDate,
-        purchasePrice: toCents(vehicle.purchasePrice),
-        participants: {
-          create: vehicle.participants.map((p) => ({
-            contactId: p.contactId,
-            profitShare: dec(p.profitShare),
-          })),
-        },
-      },
+  const vehicles: SeededVehicle[] = [];
+  for (const definition of definitions) {
+    const id = await api.create('/v1/vehicles', {
+      name: definition.name,
+      purchaseDate: definition.purchaseDate.toISOString(),
+      purchasePrice: toCents(definition.purchasePrice),
+      participants: definition.participants,
     });
+    vehicles.push({ id, ...definition });
   }
 
-  await seedVehicleEvents(prisma, vehicles);
-
+  await seedVehicleEvents(api, vehicles);
   return vehicles;
 }
 
+// Events are timestamped by the API at creation time — the seed can't
+// backdate them, so only the notes are meaningful.
 async function seedVehicleEvents(
-  prisma: PrismaClient,
+  api: ApiClient,
   vehicles: SeededVehicle[],
 ): Promise<void> {
   const [peugeot, clio, c3] = vehicles;
 
-  const events: { vehicleId: string; note: string; createdAt: Date }[] = [
+  const events: { vehicleId: string; note: string }[] = [
     {
       vehicleId: peugeot.id,
-      note: 'Contrôle technique passé sans contre-visite.',
-      createdAt: monthsAgo(9),
+      note: 'Passed the technical inspection without a re-test.',
     },
     {
       vehicleId: peugeot.id,
-      note: 'Voyant moteur allumé pendant 2 jours puis éteint tout seul — à surveiller.',
-      createdAt: monthsAgo(4),
+      note: 'Engine light stayed on for 2 days then switched off by itself — to keep an eye on.',
     },
     {
       vehicleId: clio.id,
-      note: "Le vendeur avait dit qu'il ne manquait qu'une révision, en fait la courroie était aussi à changer.",
-      createdAt: monthsAgo(12),
+      note: 'The seller said it only needed a service, but the timing belt had to be replaced too.',
     },
     {
       vehicleId: clio.id,
-      note: 'Vendue à un particulier trouvé via Leboncoin, transaction sans souci.',
-      createdAt: monthsAgo(3),
+      note: 'Sold to a private buyer found on Craigslist, hassle-free transaction.',
     },
     {
       vehicleId: c3.id,
-      note: 'Rétroviseur droit cassé sur un parking, pris en charge par assurance.',
-      createdAt: monthsAgo(5),
+      note: 'Right wing mirror broken in a car park, covered by insurance.',
     },
   ];
 
-  for (const event of events) {
-    await prisma.vehicleEvent.create({
-      data: { id: randomUUID(), ...event },
-    });
+  for (const { vehicleId, note } of events) {
+    await api.create(`/v1/vehicles/${vehicleId}/events`, { note });
   }
 }

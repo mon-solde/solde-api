@@ -2,66 +2,89 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomUUID } from 'crypto';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { ApiClient } from './seed/api-client';
+import {
+  assertEmulatorIsUp,
+  clearEmulatorAccounts,
+  signUpEmulatorUser,
+} from './seed/firebase-emulator';
 import { resetDatabase } from './seed/reset';
 import { seedContacts } from './seed/seed-contacts';
 import { seedVehicles } from './seed/seed-vehicles';
 import { seedVehicleExpenses } from './seed/seed-vehicle-expenses';
 import { seedVehicleSale } from './seed/seed-vehicle-sale';
 import { seedDebts } from './seed/seed-debts';
-import { seedRecurringCharges } from './seed/seed-recurring-charges';
-import { seedMonthlyBudgets } from './seed/seed-monthly-budgets';
-import { seedSavings } from './seed/seed-savings';
+import { seedRecurringChargesAndBudgets } from './seed/seed-budgets';
+import { seedInitialSavings, seedSavings } from './seed/seed-savings';
+
+// Everything except the owner account goes through the HTTP API, so the API
+// must be running against the Firebase Auth Emulator:
+//   npm run docker:env · npm run firebase:emulator · npm run start:dev
+
+const API_URL = process.env.SEED_API_URL ?? 'http://localhost:3000';
+const OWNER_EMAIL = 'elkarim741@gmail.com';
+const OWNER_PASSWORD = 'password123';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const OWNER_ID = 'YShNI412D9cEaKRFhHDalGA4irs1';
-const OWNER_EMAIL = 'elkarim741@gmail.com';
+async function assertApiIsUp(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/docs`);
+  } catch {
+    throw new Error(
+      `API unreachable on ${API_URL} — run "npm run start:dev" first.`,
+    );
+  }
+}
 
-async function main() {
-  await resetDatabase(prisma);
-
-  const user = await prisma.user.create({
+// TODO: replace with POST /v1/accounts once the signup endpoint exists
+// (SPEC.md) — it is the only seed step that still writes through Prisma,
+// because no endpoint can create the first User + Account (+ Wallet) yet.
+async function bootstrapOwnerAccount(uid: string): Promise<void> {
+  await prisma.user.create({
     data: {
-      id: OWNER_ID,
+      id: uid,
       firstName: 'Karim',
       lastName: null,
       role: 'ACCOUNT',
       account: { create: { email: OWNER_EMAIL } },
     },
   });
-
   await prisma.wallet.create({
-    data: { id: randomUUID(), userId: user.id, balance: 0 },
+    data: { id: randomUUID(), userId: uid, balance: 0 },
   });
+}
 
-  const contacts = await seedContacts(prisma, user.id);
-  const vehicles = await seedVehicles(prisma, user.id, contacts);
-  const pendingExpenseDebts = await seedVehicleExpenses(
-    prisma,
-    user.id,
-    vehicles,
-  );
+async function main() {
+  await assertEmulatorIsUp();
+  await assertApiIsUp();
+
+  await resetDatabase(prisma);
+  await clearEmulatorAccounts();
+
+  const owner = await signUpEmulatorUser(OWNER_EMAIL, OWNER_PASSWORD);
+  await bootstrapOwnerAccount(owner.uid);
+  const api = new ApiClient(API_URL, owner.idToken);
+
+  await seedInitialSavings(api);
+  const contacts = await seedContacts(api);
+  const vehicles = await seedVehicles(api, contacts);
+  await seedVehicleExpenses(api, owner.uid, vehicles);
   const clio = vehicles.find((v) => v.name === 'Renault Clio');
   if (!clio) throw new Error('Seed vehicle not found: Renault Clio');
-  const pendingSoldVehicleDebts = await seedVehicleSale(prisma, user.id, clio);
+  await seedVehicleSale(api, owner.uid, clio);
 
-  await seedDebts(
-    prisma,
-    user.id,
-    contacts,
-    pendingExpenseDebts,
-    pendingSoldVehicleDebts,
-  );
+  await seedDebts(api, contacts);
+  await seedRecurringChargesAndBudgets(api);
+  await seedSavings(api);
 
-  const charges = await seedRecurringCharges(prisma, user.id);
-  await seedMonthlyBudgets(prisma, user.id, charges);
-
-  await seedSavings(prisma, user.id);
-
-  console.log('Seed done');
+  console.log(`Seed done — sign in with ${OWNER_EMAIL} / ${OWNER_PASSWORD}`);
 }
 
 main()
-  .catch(console.error)
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
   .finally(() => prisma.$disconnect());

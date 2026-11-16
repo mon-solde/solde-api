@@ -37,11 +37,11 @@ Default values:
 | Variable       | Value                                          |
 |----------------|------------------------------------------------|
 | `DB_HOST`      | `localhost`                                    |
-| `DB_PORT`      | `5432`                                         |
+| `DB_PORT`      | `5433`                                         |
 | `DB_USERNAME`  | `user`                                         |
 | `DB_PASSWORD`  | `password`                                     |
 | `DB_NAME`      | `ddh`                                          |
-| `DATABASE_URL` | `postgresql://user:password@localhost:5432/ddh` |
+| `DATABASE_URL` | `postgresql://user:password@localhost:5433/ddh` |
 
 ### 3. Start the infrastructure
 
@@ -54,11 +54,11 @@ npm run docker:env
 To run in detached mode (background):
 
 ```bash
-docker-compose --file docker/docker-compose.yml up --build -d
+docker-compose -p solde --file docker/docker-compose.yml up --build -d
 ```
 
-- **PostgreSQL** is available on port `5432`
-- **pgAdmin** is available at [http://localhost:5050](http://localhost:5050) (login: `admin@email.com` / `admin`)
+- **PostgreSQL** is available on port `5433`
+- **pgAdmin** is available at [http://localhost:5051](http://localhost:5051) (login: `admin@email.com` / `admin`)
 
 ### 4. Apply the database schema
 
@@ -87,7 +87,7 @@ The tests use a separate database (`ddh_tests`) to avoid touching your dev data.
 **1. Create the test database:**
 
 ```bash
-docker exec -it postgres-container psql -U user -d ddh -c "CREATE DATABASE ddh_tests;"
+docker exec -it solde-postgres psql -U user -d ddh -c "CREATE DATABASE ddh_tests;"
 ```
 
 **2. Apply the schema to the test database:**

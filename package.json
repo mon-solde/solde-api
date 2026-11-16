@@ -19,7 +19,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest -i --config jest-e2e.json",
-    "docker:env": "docker-compose --file docker/docker-compose.yml up --build",
+    "docker:env": "docker-compose -p solde --file docker/docker-compose.yml up --build",
     "migration:reset": "npx prisma migrate reset",
     "migration:reset:tests": "dotenv -e .env.test -- npx prisma migrate reset",
     "migration:dev": "npx prisma migrate dev",

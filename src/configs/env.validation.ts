@@ -10,6 +10,10 @@ const envSchema = z.object({
     .min(1)
     .transform((key) => key.replace(/\\n/g, '\n')),
   FIREBASE_STORAGE_BUCKET: z.string().min(1),
+  // Dev/tests only. Declared here because ConfigModule copies only the
+  // validated keys into process.env, and firebase-admin reads this var from
+  // process.env to talk to the Auth Emulator instead of real Firebase.
+  FIREBASE_AUTH_EMULATOR_HOST: z.string().min(1).optional(),
   CORS_ORIGIN: z.string().url(),
   NODE_ENV: z
     .enum(['development', 'production', 'test'])

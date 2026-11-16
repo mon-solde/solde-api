@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import type { PrismaClient } from '../../src/generated/prisma/client';
+import type { ApiClient } from './api-client';
 
 export type SeededContact = {
   id: string;
@@ -18,22 +17,10 @@ const CONTACTS: Omit<SeededContact, 'id'>[] = [
   { firstName: 'Chloé', lastName: 'Faure' },
 ];
 
-export async function seedContacts(
-  prisma: PrismaClient,
-  ownerId: string,
-): Promise<SeededContact[]> {
+export async function seedContacts(api: ApiClient): Promise<SeededContact[]> {
   const contacts: SeededContact[] = [];
   for (const { firstName, lastName } of CONTACTS) {
-    const id = randomUUID();
-    await prisma.user.create({
-      data: {
-        id,
-        firstName,
-        lastName,
-        role: 'CONTACT',
-        contact: { create: { ownerId } },
-      },
-    });
+    const id = await api.create('/v1/contacts', { firstName, lastName });
     contacts.push({ id, firstName, lastName });
   }
   return contacts;

@@ -127,7 +127,11 @@ const include = {
 // an account's id, so no OR across both sides is needed here.
 function buildWhere(
   userId: string,
-  filters: { contactId?: string; role?: 'LENDER' | 'BORROWER'; vehicleId?: string },
+  filters: {
+    contactId?: string;
+    role?: 'LENDER' | 'BORROWER';
+    vehicleId?: string;
+  },
 ) {
   return {
     ownerId: userId,
@@ -136,7 +140,11 @@ function buildWhere(
     ...(filters.vehicleId
       ? {
           OR: [
-            { soldVehicleDebt: { soldVehicle: { vehicleId: filters.vehicleId } } },
+            {
+              soldVehicleDebt: {
+                soldVehicle: { vehicleId: filters.vehicleId },
+              },
+            },
             { expenseDebt: { expense: { vehicleId: filters.vehicleId } } },
           ],
         }
@@ -159,7 +167,10 @@ function buildOrderBy(orderBy: OrderBy) {
 }
 
 function totalRepaid(row: DebtRow): number {
-  const total = row.repayments.reduce((sum, r) => sum.add(eur(r.amount)), eur(0));
+  const total = row.repayments.reduce(
+    (sum, r) => sum.add(eur(r.amount)),
+    eur(0),
+  );
   return toCents(total);
 }
 
@@ -188,7 +199,8 @@ function toListItem(row: DebtRow): DebtListItem {
   const borrowerId = isLender ? row.contactId : row.ownerId;
   const ownerInfo = row.owner?.user;
   const contactInfo = row.contact?.user;
-  const fullName = (u?: UserInfo) => u && `${u.firstName} ${u.lastName ?? ''}`.trim();
+  const fullName = (u?: UserInfo) =>
+    u && `${u.firstName} ${u.lastName ?? ''}`.trim();
   const lenderName = isLender ? fullName(ownerInfo) : fullName(contactInfo);
   const borrowerName = isLender ? fullName(contactInfo) : fullName(ownerInfo);
 
@@ -204,7 +216,9 @@ function toListItem(row: DebtRow): DebtListItem {
     date: row.date,
     type: row.type as DebtType,
     description:
-      row.manualDebt?.description ?? row.expenseDebt?.expense.label ?? undefined,
+      row.manualDebt?.description ??
+      row.expenseDebt?.expense.label ??
+      undefined,
     vehicleId:
       row.soldVehicleDebt?.soldVehicle.vehicleId ??
       row.expenseDebt?.expense.vehicleId,
@@ -239,10 +253,14 @@ function matchesStatus(
   return status === 'REPAID' ? item.isRepaid : !item.isRepaid;
 }
 
-function computeTotals(userId: string, items: readonly DebtListItem[]): DebtTotals {
+function computeTotals(
+  userId: string,
+  items: readonly DebtListItem[],
+): DebtTotals {
   const lent = items.filter((d) => d.lenderId === userId);
   const borrowed = items.filter((d) => d.lenderId !== userId);
-  const sum = (ds: readonly DebtListItem[]) => ds.reduce((s, d) => s + d.remaining, 0);
+  const sum = (ds: readonly DebtListItem[]) =>
+    ds.reduce((s, d) => s + d.remaining, 0);
   const lentRemaining = sum(lent);
   const borrowedRemaining = sum(borrowed);
   return {
@@ -258,7 +276,9 @@ function computeTotals(userId: string, items: readonly DebtListItem[]): DebtTota
 export class FindDebtsQueryHandler implements IQueryHandler {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(query: FindDebtsQuery): Promise<Result<FindDebtsResult, never>> {
+  async execute(
+    query: FindDebtsQuery,
+  ): Promise<Result<FindDebtsResult, never>> {
     const filters = {
       contactId: query.contactId,
       role: query.role,
@@ -275,7 +295,9 @@ export class FindDebtsQueryHandler implements IQueryHandler {
         orderBy: buildOrderBy(query.orderBy),
       })) as unknown as DebtRow[];
       const allMatching = rows.map(toListItem);
-      const filtered = allMatching.filter((d) => matchesStatus(d, query.status!));
+      const filtered = allMatching.filter((d) =>
+        matchesStatus(d, query.status!),
+      );
       return Ok({
         data: filtered.slice(query.offset, query.offset + query.limit),
         count: filtered.length,

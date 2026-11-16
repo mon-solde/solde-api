@@ -94,6 +94,8 @@ export class FindContactsQueryHandler implements IQueryHandler {
       updatedAt: r.updatedAt,
     }));
 
-    return Ok(new Paginated({ data, count, limit: query.limit, page: query.page }));
+    return Ok(
+      new Paginated({ data, count, limit: query.limit, page: query.page }),
+    );
   }
 }

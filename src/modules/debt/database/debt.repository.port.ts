@@ -71,6 +71,9 @@ export interface DebtRepositoryPort extends RepositoryPort<DebtEntity> {
     soldVehicleId: string,
     debts: CreateDebtParams[],
   ): Promise<void>;
-  insertExpenseDebts(expenseId: string, debts: CreateDebtParams[]): Promise<void>;
+  insertExpenseDebts(
+    expenseId: string,
+    debts: CreateDebtParams[],
+  ): Promise<void>;
   deleteByIds(debtIds: string[]): Promise<void>;
 }

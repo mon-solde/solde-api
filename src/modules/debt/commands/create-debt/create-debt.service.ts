@@ -57,7 +57,11 @@ export class CreateDebtService implements ICommandHandler {
 
     if (!eur(bankAmount).add(eur(cashAmount)).equalsTo(eur(command.amount))) {
       return Err(
-        new DebtAmountSplitMismatchError(bankAmount, cashAmount, command.amount),
+        new DebtAmountSplitMismatchError(
+          bankAmount,
+          cashAmount,
+          command.amount,
+        ),
       );
     }
 

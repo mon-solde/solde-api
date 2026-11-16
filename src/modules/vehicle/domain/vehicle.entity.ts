@@ -118,7 +118,10 @@ export class VehicleEntity extends AggregateRoot<VehicleProps> {
   // payload must name exactly the same contacts already on the vehicle.
   updateParticipantShares(
     participants: VehicleParticipantProps[],
-  ): Result<void, VehicleParticipantMismatchError | VehicleProfitShareSumError> {
+  ): Result<
+    void,
+    VehicleParticipantMismatchError | VehicleProfitShareSumError
+  > {
     const currentContactIds = new Set(
       this.props.participants.map((p) => p.contactId),
     );

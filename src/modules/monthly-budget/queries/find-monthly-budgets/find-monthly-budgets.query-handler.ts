@@ -86,6 +86,8 @@ export class FindMonthlyBudgetsQueryHandler implements IQueryHandler {
       })),
     }));
 
-    return Ok(new Paginated({ data, count, limit: query.limit, page: query.page }));
+    return Ok(
+      new Paginated({ data, count, limit: query.limit, page: query.page }),
+    );
   }
 }

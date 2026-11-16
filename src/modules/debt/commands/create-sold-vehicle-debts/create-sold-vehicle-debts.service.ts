@@ -2,7 +2,10 @@ import { Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Ok, Result } from 'oxide.ts';
 import { DEBT_REPOSITORY } from '../../debt.di-tokens';
-import { CreateDebtParams, DebtRepositoryPort } from '../../database/debt.repository.port';
+import {
+  CreateDebtParams,
+  DebtRepositoryPort,
+} from '../../database/debt.repository.port';
 
 // Internal-only: dispatched by the vehicle module when a sale generates
 // debts between the owner and the sale's beneficiaries — vehicle already
@@ -28,7 +31,10 @@ export class CreateSoldVehicleDebtsService implements ICommandHandler {
     command: CreateSoldVehicleDebtsCommand,
   ): Promise<Result<void, never>> {
     await this.debtRepo.transaction(() =>
-      this.debtRepo.insertSoldVehicleDebts(command.soldVehicleId, command.debts),
+      this.debtRepo.insertSoldVehicleDebts(
+        command.soldVehicleId,
+        command.debts,
+      ),
     );
     return Ok(undefined);
   }

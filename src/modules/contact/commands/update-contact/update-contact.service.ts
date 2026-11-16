@@ -61,7 +61,8 @@ export class UpdateContactService implements ICommandHandler {
       // so the controller doesn't need to know about another module's error
       // type — but only for the specific case we recognize; anything else
       // surfaces as-is instead of being silently mislabeled.
-      if (error instanceof UserNotFoundError) return Err(new ContactNotFoundError());
+      if (error instanceof UserNotFoundError)
+        return Err(new ContactNotFoundError());
       throw error;
     }
     return Ok(true);

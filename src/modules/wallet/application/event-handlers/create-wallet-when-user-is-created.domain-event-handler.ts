@@ -15,6 +15,10 @@ export class CreateWalletWhenUserIsCreatedDomainEventHandler {
   // Handle a Domain Event by performing changes to other aggregates (inside the same Domain).
   @OnEvent(UserCreatedDomainEvent.name, { async: true, promisify: true })
   async handle(event: UserCreatedDomainEvent): Promise<any> {
+    // A Contact has no Account row, so it can never own a Wallet (Wallet.userId
+    // has an FK to Account.userId) — only an ACCOUNT-role User gets one.
+    if (event.role !== 'ACCOUNT') return;
+
     const wallet = WalletEntity.create({
       userId: event.aggregateId,
     });

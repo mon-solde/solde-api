@@ -15,6 +15,7 @@ export class UserEntity extends AggregateRoot<UserProps> {
         aggregateId: id,
         firstName: props.firstName,
         lastName: props.lastName,
+        role: props.role,
       }),
     );
     return user;

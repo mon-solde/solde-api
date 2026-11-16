@@ -3,8 +3,7 @@
 Backend of **Solde**, a personal finance app: a monthly budget, debts between friends, savings in bank and cash, and vehicles bought together. You enter something once and every page that depends on it updates.
 
 ## Demo
-
-<!-- Paste the GitHub video link here: drag the video into the editor on github.com. -->
+https://github.com/user-attachments/assets/0a769d2e-600d-4594-bfa8-143cc7fe2d1a
 
 Web app (React): [voit-admin](https://github.com/Voit-admin/voit-admin)
 

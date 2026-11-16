@@ -127,14 +127,22 @@ export abstract class PrismaRepositoryBase<
    * results of all event handlers in one operation
    */
   public async transaction<T>(handler: () => Promise<T>): Promise<T> {
+    // Already inside a transaction (e.g. a command dispatched from a handler
+    // that is itself wrapped in repo.transaction): join it instead of opening
+    // another one. Otherwise the inner call's `finally` would clear the
+    // ambient connection it didn't open, and the outer handler's next write
+    // would silently fall back to a non-transactional connection that can't
+    // see the outer transaction's uncommitted rows.
+    if (RequestContextService.getTransactionConnection()) {
+      return handler();
+    }
+
     return this._prisma.$transaction(
       async (tx) => {
         this.logger.debug(
           `[${RequestContextService.getRequestId()}] transaction started`,
         );
-        if (!RequestContextService.getTransactionConnection()) {
-          RequestContextService.setTransactionConnection(tx);
-        }
+        RequestContextService.setTransactionConnection(tx);
 
         try {
           const result = await handler();

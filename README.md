@@ -1,134 +1,77 @@
-# Solde — API
+# Solde API
 
-Backend of **Solde**, a personal finance management app: monthly budgeting, debt tracking between people, savings, and shared vehicle ownership expenses.
+Backend of **Solde**, a personal finance app: a monthly budget, debts between friends, savings in bank and cash, and vehicles bought together. You enter something once and every page that depends on it updates.
 
-The frontend lives in [`solde-admin`](https://github.com/Voit-admin/voit-admin).
+## Demo
 
-## Tech stack
+<!-- Paste the GitHub video link here: drag the video into the editor on github.com. -->
 
-- **Framework**: [NestJS](https://nestjs.com/) with a DDD/CQRS architecture (commands, queries, aggregates, domain events)
-- **Database**: PostgreSQL via [Prisma](https://www.prisma.io/)
-- **Auth**: Firebase Authentication (JWT verification on every protected route)
-- **Language**: TypeScript
+Web app (React): [voit-admin](https://github.com/Voit-admin/voit-admin)
 
-## Prerequisites
+## Architecture
 
-- [Node.js](https://nodejs.org/) v20.1.0 (managed via [Volta](https://volta.sh/))
-- [Docker](https://www.docker.com/) and Docker Compose
+```mermaid
+flowchart LR
+    A[Web app] -->|REST /v1<br/>Firebase ID token| API[NestJS API]
+    A -->|sign-in| FA[Firebase Auth]
+    API -->|verify token| FA
+    API -->|Prisma| PG[(PostgreSQL)]
+```
 
-## Getting Started
+Inside the API: NestJS, Domain-Driven Design and CQRS.
 
-### 1. Install dependencies
+```
+write: HTTP controller → CommandBus → service → domain entity → repository → domain events
+read:  HTTP controller → QueryBus → query handler → Prisma
+```
+
+Modules (`src/modules`): `monthly-budget`, `recurring-charge`, `debt`, `savings`, `contact`, `vehicle`, `user`, `wallet`, `auth`. They talk through domain events, or by dispatching another module's command: adding a vehicle expense creates its debts this way. The import rules between layers are checked by `npm run deps:validate` ([dependency-cruiser](.dependency-cruiser.js)).
+
+## Key decisions
+
+| Decision | Why |
+|---|---|
+| [Recurring charges are versioned](prisma/schema.prisma): each edit adds a version, and a [generated month](src/modules/monthly-budget/commands/init-month/init-month.service.ts) keeps pointing to the version that was current | Changing a charge never rewrites the months already generated |
+| [Money is an integer in cents](src/libs/money/money.ts), handled with Dinero.js | No rounding error |
+| [Savings are computed, never stored](src/modules/savings/savings-engine.service.ts): the balances and the history are rebuilt from six sources (lent debts, repayments, budget withdrawals, manual movements, vehicle expenses, vehicle sales) | One entry feeds every page, so nothing is typed twice. Borrowed money never counts as savings. |
+| [A debt's status is derived](src/modules/debt/domain/debt.entity.ts) from its repayments, with two explicit overrides: settled by hand or forgiven | The status cannot disagree with the repayments |
+| A [vehicle sale](src/modules/vehicle/commands/declare-sale/declare-sale.service.ts) splits the profit by share and creates the debts between the beneficiaries. An expense paid [on behalf of someone](src/modules/vehicle/domain/profit-sharing.ts) counts as their investment and creates a debt | Handlers that write several tables run in one transaction, so a sale or an expense is never half recorded |
+| [Contacts are hidden, not deleted](src/modules/contact/database/contact.repository.ts) when they have history | A debt, an expense payment or a sale cannot lose the person it refers to |
+| [Firebase Auth](src/modules/auth/firebase-auth.guard.ts) behind a global guard, and the [Auth Emulator](src/modules/auth/firebase-admin.service.ts) for development and tests | No real credentials needed to run it locally |
+
+## What it does
+
+- **Monthly budget:** enter the salary, the active recurring charges are applied, and the remaining amount can be set aside into savings.
+- **Recurring charges:** create, edit (versioned), deactivate and reactivate.
+- **Debts:** loans and borrowings with a contact, paid from bank, cash or both. Repayments, partial or full, mark as settled or forgive.
+- **Contacts:** the people you share money with.
+- **Vehicles:** several owners with a profit share each, expenses with several payers, free-form notes, and a sale.
+- **Savings:** bank and cash balances, the full history of what moved them, and manual movements.
+
+Swagger lists every route at `/docs`.
+
+## Run it locally
+
+You need Node.js 20, Docker and the Firebase CLI. Run each long command in its own terminal.
 
 ```bash
 npm install
+cp .env.example .env     # see src/configs/env.validation.ts
+npm run docker:env       # PostgreSQL on 5433, pgAdmin on 5051
+npm run migration:deploy
+npm run prisma:generate
+npm run firebase:emulator
+npm run start:dev        # http://localhost:3000, Swagger at /docs
+npm run db:seed          # demo data, created through the running API
 ```
 
-### 2. Configure environment variables
+Set `FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"` in `.env` to use the emulator: the other `FIREBASE_*` values can then be placeholders. The seed prints the account to sign in with. The app validates its environment at boot and refuses to start if a variable is missing.
 
-Copy the example file and adjust if needed:
+## What I'd improve
 
-```bash
-cp .env.example .env
-```
+- Automated tests: the end-to-end setup is there (Gherkin features, a real PostgreSQL, the Auth Emulator) but the business modules have no tests yet. The rules sit in domain entities, so they can be tested without a database.
+- Account creation: accounts come from the seed, there is no sign-up flow yet.
+- Template leftovers: the packages nothing uses any more (`@nestjs/jwt`, GraphQL).
 
-Default values:
+## Contact
 
-| Variable       | Value                                          |
-|----------------|------------------------------------------------|
-| `DB_HOST`      | `localhost`                                    |
-| `DB_PORT`      | `5433`                                         |
-| `DB_USERNAME`  | `user`                                         |
-| `DB_PASSWORD`  | `password`                                     |
-| `DB_NAME`      | `ddh`                                          |
-| `DATABASE_URL` | `postgresql://user:password@localhost:5433/ddh` |
-
-### 3. Start the infrastructure
-
-Launch PostgreSQL and pgAdmin via Docker:
-
-```bash
-npm run docker:env
-```
-
-To run in detached mode (background):
-
-```bash
-docker-compose -p solde --file docker/docker-compose.yml up --build -d
-```
-
-- **PostgreSQL** is available on port `5433`
-- **pgAdmin** is available at [http://localhost:5051](http://localhost:5051) (login: `admin@email.com` / `admin`)
-
-### 4. Apply the database schema
-
-```bash
-npm run db:push
-```
-
-### 5. (Optional) Seed the database
-
-```bash
-npm run db:seed
-```
-
-### 6. Start the application
-
-```bash
-npm run start:dev
-```
-
-## Tests
-
-The tests use a separate database (`ddh_tests`) to avoid touching your dev data.
-
-### First-time setup (one time only)
-
-**1. Create the test database:**
-
-```bash
-docker exec -it solde-postgres psql -U user -d ddh -c "CREATE DATABASE ddh_tests;"
-```
-
-**2. Apply the schema to the test database:**
-
-```bash
-npm run db:push:tests
-```
-
-### Run the tests
-
-```bash
-npm run test       # unit tests only
-npm run test:e2e   # end-to-end tests only
-```
-
-> After any schema change (`prisma/schema.prisma`), re-run `npm run db:push:tests` to keep the test database in sync.
-
-## Available Scripts
-
-| Script                       | Description                                         |
-|------------------------------|-----------------------------------------------------|
-| `npm run start:dev`          | Start in watch mode (hot-reload)                    |
-| `npm run start:debug`        | Start in debug mode with watch                      |
-| `npm run start:prod`         | Start from compiled `dist/`                         |
-| `npm run build`              | Build the project                                   |
-| `npm run docker:env`         | Start PostgreSQL and pgAdmin via Docker             |
-| `npm run db:push`            | Apply Prisma schema to dev database                 |
-| `npm run db:push:tests`      | Apply Prisma schema to test database                |
-| `npm run db:seed`            | Seed the dev database                               |
-| `npm run db:seed:tests`      | Seed the test database                              |
-| `npm run migration:dev`      | Create and apply a new migration (dev)              |
-| `npm run migration:deploy`   | Apply pending migrations (production)               |
-| `npm run migration:reset`    | Reset the dev database (drop + recreate + migrate)  |
-| `npm run migration:reset:tests` | Reset the test database                          |
-| `npm run migration:status`   | Check migration status                              |
-| `npm run prisma:generate`    | Regenerate Prisma client                            |
-| `npm run prisma:studio`      | Open Prisma Studio (visual DB browser)              |
-| `npm run test`               | Run unit tests                                      |
-| `npm run test:e2e`           | Run end-to-end tests (sequential, uses DB)          |
-| `npm run test:cov`           | Run tests with coverage                             |
-| `npm run lint`               | Lint and auto-fix source files                      |
-| `npm run format`             | Format source files with Prettier                   |
-| `npm run deps:validate`      | Validate dependency rules                           |
-| `npm run deps:graph`         | Generate dependency graph (SVG)                     |

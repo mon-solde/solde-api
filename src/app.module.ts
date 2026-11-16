@@ -14,8 +14,6 @@ import { RequestContextModule } from 'nestjs-request-context';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ContextInterceptor } from '@libs/application/context/ContextInterceptor';
 import { ExceptionInterceptor } from '@libs/application/interceptors/exception.interceptor';
-import { GraphQLModule } from '@nestjs/graphql';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { PrismaModule } from '@libs/db/prisma.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { validateEnv } from '@config/env.validation';
@@ -37,10 +35,6 @@ const interceptors = [
     EventEmitterModule.forRoot(),
     RequestContextModule,
     CqrsModule,
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      autoSchemaFile: true,
-    }),
 
     // Modules
     AuthModule,

@@ -4,7 +4,6 @@
  */
 
 // Root
-const usersRoot = 'users';
 const vehiclesRoot = 'vehicles';
 const walletsRoot = 'wallets';
 const debtsRoot = 'debts';
@@ -21,10 +20,6 @@ const v1 = 'v1';
 
 export const routesV1 = {
   version: v1,
-  user: {
-    root: usersRoot,
-    delete: `/${usersRoot}/:id`,
-  },
   vehicle: {
     root: vehiclesRoot,
     byId: `${vehiclesRoot}/:vehicleId`,
